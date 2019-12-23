@@ -5,8 +5,6 @@ import { HOURS_ID, BRAIN_ID, MUSCLE_ID, HEART_ID, STRIKE_ID} from './GameForm'
 import $ from 'jquery'
 
 
-
-
 export default class GameForm extends React.Component {
     constructor(props) {
         super(props)
@@ -16,18 +14,26 @@ export default class GameForm extends React.Component {
     }
 
     onChangedHours(event, index) {
+        
+       
         const hoursEntered = $('#'+HOURS_ID+index).val()
         if(isNaN(hoursEntered) || hoursEntered <= 0) {
             this.updateBodyPart(BRAIN_ID, index, 0)
             this.updateBodyPart(MUSCLE_ID, index, 0)
             this.updateBodyPart(HEART_ID, index, 0)
             this.setState({strikeEnabled: false})
+            this.props.parent.sendSelection()
             return;
         }
         this.updateBodyPart(BRAIN_ID, index, hoursEntered)
         this.updateBodyPart(MUSCLE_ID, index, hoursEntered)
         this.updateBodyPart(HEART_ID, index, hoursEntered)
         this.setState({strikeEnabled: true})
+        this.props.parent.sendSelection()
+    }
+
+    onToggleStrike(index) {
+        this.props.parent.sendSelection()
     }
     
     updateBodyPart(partID, index, hoursEntered) {
@@ -101,9 +107,8 @@ export default class GameForm extends React.Component {
                         <Box className="col-md-1" display="flex">
                             <FormControlLabel
                                 className="my-auto mx-auto"
-                                id={STRIKE_ID + index}
                                 value="end"
-                                control={<Checkbox color="primary" />}
+                                control={<Checkbox color="primary" id={STRIKE_ID + index} onClick={() => this.onToggleStrike(index)}/>}
                                 label="Strike"
                                 labelPlacement="top"
                                 disabled={!this.state.strikeEnabled}

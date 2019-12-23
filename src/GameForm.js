@@ -1,7 +1,8 @@
 import React from 'react'
 import Typography from '@material-ui/core/Typography'
-import { Box, TextField, FormControl, FormControlLabel, FormGroup, Checkbox, InputAdornment } from '@material-ui/core';
+import { Box, Button } from '@material-ui/core';
 import GameRow from './GameRow'
+import $ from 'jquery'
 
 
 // function createMockData(companyName, hoursWorked, )
@@ -23,7 +24,8 @@ export default class GameForm extends React.Component {
         super();
         this.state = {
             isLoaded: false,
-            companies: [{name: "nikolas", brain: 1, muscle: 2, heart: 3}, {name: "nikolas", brain: 1, muscle: 2, heart: 3}, {name: "nikolas", brain: 1, muscle: 2, heart: 3}, {name: "nikolas", brain: 1, muscle: 2, heart: 3}, {name: "nikolas", brain: 1, muscle: 2, heart: 3}, {name: "nikolas", brain: 1, muscle: 2, heart: 3}],
+            companies: [],
+            saveStatus: "Not Saved"
         }
     }
 
@@ -32,19 +34,61 @@ export default class GameForm extends React.Component {
             .then(res => {
                 return res.json();
             }).then(data => {
+                
+                const len = data.length
                 this.setState({
                     companies: data,
                     isLoaded: true,
+                    numRows: len
                 })
                 console.log("Set the state in did mount")
-            }, (error) => {this.setState({
-                isLoaded: true,
-                error
-            })})
+            }, (error) => {
+                console.log("Error fetching companies: "+ error)
+            })
+    }
+
+    collectEntries() {
+        const data = []
+        for (let i = 0; i < this.state.numRows; i++) {
+            const hours = $('#'+HOURS_ID+i).val()
+            let strike = false
+            if(!isNaN(hours) && hours > 0) {
+                strike = $('#'+STRIKE_ID+i).prop('checked')
+            }
+
+            data[i] = [hours, strike]
+            
+        }
+        return JSON.stringify(data)
+    }
+
+    sendSelection() {
+        const data = this.collectEntries();
+        console.log("Sending data: " + data)
+        fetch('/api/sendSelection', {
+            method: 'POST',
+            body: data,
+            headers: {
+                'Content-Type': 'application/json'
+                // 'Content-Type': 'application/x-www-form-urlencoded',
+              }
+            
+            
+        }).then((res) => {
+            const status = res.status
+            if(status === 200) {
+                const newState = {...this.state}
+                newState.saveStatus = "Saved " + new Date().toTimeString();
+            }
+        })
+    }
+
+    wasChange() {
+
     }
 
     render() {
-        const {error, isLoaded, data} = this.state;
+        const {error, isLoaded} = this.state;
         if(error) {
             return <div>Error {error.message}</div>
         }
@@ -67,15 +111,13 @@ export default class GameForm extends React.Component {
                     </Box>
                     <Box className="row col-sm-6" pl={3} >
                         <Box mt="auto" className="col-6" pt={3}>
-                            <Typography>
-                                Saved
+                            <Typography id="game-saved-status">
+                                {this.state.saveStatus}
                             </Typography>
                         </Box>
 
                         <Box mt="auto" className="col-6" >
-                            <Typography>
-                                Saved 2
-                            </Typography>
+                            <Button id="game-submit-button" variant="contained" color="primary">Submit</Button>
                         </Box>
                     </Box>
                 </Box>
@@ -114,12 +156,12 @@ export default class GameForm extends React.Component {
                         </Box>
                     </Box>
                 </Box>
-                {this.state.companies.map((c) => {
-                    const i = this.state.companies.indexOf(c)
+                {this.state.companies.map((c, i) => {
                     return (
-                        <GameRow company={c} index={i}/>
+                        <GameRow company={c} index={i} parent={this}/>
                     );
                 })}
+                
             </div>
         );
     }

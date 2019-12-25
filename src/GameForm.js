@@ -25,7 +25,9 @@ export default class GameForm extends React.Component {
         this.state = {
             isLoaded: false,
             companies: [],
-            saveStatus: "Not Saved"
+            saveStatus: "Not Saved",
+            disableAll: false,
+            week: 0
         }
     }
 
@@ -34,13 +36,13 @@ export default class GameForm extends React.Component {
             .then(res => {
                 return res.json();
             }).then(data => {
-                
+                const tempState = {...this.state}
                 const len = data.length
-                this.setState({
-                    companies: data,
-                    isLoaded: true,
-                    numRows: len
-                })
+                tempState.companies = data.sessions
+                tempState.week = data.week
+                tempState.isLoaded = true
+                tempState.numRows = len
+                this.setState(tempState)
                 console.log("Set the state in did mount")
             }, (error) => {
                 console.log("Error fetching companies: "+ error)
@@ -70,10 +72,7 @@ export default class GameForm extends React.Component {
             body: data,
             headers: {
                 'Content-Type': 'application/json'
-                // 'Content-Type': 'application/x-www-form-urlencoded',
-              }
-            
-            
+            }
         }).then((res) => {
             const status = res.status
             if(status === 200) {
@@ -83,9 +82,6 @@ export default class GameForm extends React.Component {
         })
     }
 
-    wasChange() {
-
-    }
 
     render() {
         const {error, isLoaded} = this.state;
@@ -100,7 +96,7 @@ export default class GameForm extends React.Component {
                 <Box className="row border-bottom" pb={4}>
                     <Box className="row col-sm-6" pl={3}>
                         <Typography className="col-12" variant="h2" id="game-form-week">
-                            Week X
+                            Week {this.state.week}
                             </Typography>
                         <Box className="col-12" mt={2}>
                             <Typography variant="h6" id="game-form-name">
@@ -117,7 +113,7 @@ export default class GameForm extends React.Component {
                         </Box>
 
                         <Box mt="auto" className="col-6" >
-                            <Button id="game-submit-button" variant="contained" color="primary">Submit</Button>
+                            <Button id="game-submit-button" variant="contained" color="primary" disabled={this.disableAll}>Submit</Button>
                         </Box>
                     </Box>
                 </Box>

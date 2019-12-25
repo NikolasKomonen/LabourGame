@@ -1,13 +1,11 @@
+const SQL = require('../database/sqliteIndex')
 
-
-const getCompanies = () => {
-    var x = []
-
-    for (let i = 0; i < 10; i++) {
-        x[i] = {name: "Company"+i, brain: 0, muscle: i+1, heart: i+2}
-    }
-
-    return x;
+const getCompanies = (req, res = Response, db = SQL, week) => {
+    
+    db.all(`SELECT companies_name, brain, muscle, heart FROM game_sessions WHERE weeks_week=?`, [week]).then((rows) => {
+        res.status(200)
+        res.send({ sessions:rows, week: week})
+    })
 }
 
 exports.getCompanies = getCompanies;

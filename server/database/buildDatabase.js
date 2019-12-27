@@ -28,7 +28,7 @@ function createTables() {
                 week integer PRIMARY KEY
                 )`
 
-        const game_selections = `CREATE TABLE IF NOT EXISTS game_selections (
+        const user_selections = `CREATE TABLE IF NOT EXISTS user_selections (
                 accounts_username varchar(40),
                 companies_name text,
                 weeks_week integer,
@@ -48,7 +48,7 @@ function createTables() {
                      db.run(game_sessions), 
                      db.run(companies), 
                      db.run(weeks), 
-                     db.run(game_selections), 
+                     db.run(user_selections), 
                      db.run(student_game_weeks)])
                         .then(() => resolve()).catch((reject) => {console.log("Error when building table: " + reject)})
     })
@@ -73,7 +73,7 @@ function insertStudentGameWeeks(username, week, isSubmitted) {
 }
 
 function insertGameSelections(username, company_name, weeks_week, hours, strike) {
-    return db.run('INSERT INTO game_selections VALUES (?, ?, ?, ?, ?)', [username, company_name, weeks_week, hours, strike])
+    return db.run('INSERT INTO user_selections VALUES (?, ?, ?, ?, ?)', [username, company_name, weeks_week, hours, strike])
 }
 
 function insertGameSessions(company_name, weeks_week, brain, muscle, heart) {
@@ -100,12 +100,12 @@ function insertMockData() {
             insertWeeks(4),
             insertWeeks(5),
             // Accounts
-            insertAccounts('a', 'a', 'salty-salt', false),
-            insertAccounts('nikomo55', 'plopplop222', 'salty-salt', false),
-            insertAccounts('johnson22', 'blasterPasswer', 'salty-salt', false),
-            insertAccounts('kittykat666', 'firePassword', 'salty-salt', false),
-            insertAccounts('IAmAdmin', 'passwordDragon', 'salty-salt', true),
-            insertAccounts('willy52', 'password123', 'salty-salt', false),
+            // insertAccounts('a', 'a', 'salty-salt', false),
+            // insertAccounts('nikomo55', 'plopplop222', 'salty-salt', false),
+            // insertAccounts('johnson22', 'blasterPasswer', 'salty-salt', false),
+            // insertAccounts('kittykat666', 'firePassword', 'salty-salt', false),
+            // insertAccounts('IAmAdmin', 'passwordDragon', 'salty-salt', true),
+            // insertAccounts('willy52', 'password123', 'salty-salt', false),
             // Student Game Weeks
             insertStudentGameWeeks('nikomo55', 1, false),
             insertStudentGameWeeks('nikomo55', 2, false),

@@ -9,9 +9,3 @@ const getCompanies = (req, res = Response, db = SQL, week) => {
 }
 
 exports.getCompanies = getCompanies;
-
-// app.get('/NikolasKomonen/Game', (req, res) => {
-//     res.status(200)
-    
-//     res.send({data: getCompanies()});
-// })

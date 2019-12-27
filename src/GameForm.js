@@ -2,14 +2,7 @@ import React from 'react'
 import Typography from '@material-ui/core/Typography'
 import { Box, Button } from '@material-ui/core';
 import GameRow from './GameRow'
-import $ from 'jquery'
 
-
-// function createMockData(companyName, hoursWorked, )
-
-// const rows = [
-//     createData
-// ]
 export const HOURS_ID = 'game-hours-'
 export const BRAIN_ID = 'game-brain-'
 export const MUSCLE_ID = 'game-muscle-'
@@ -17,8 +10,6 @@ export const HEART_ID = 'game-heart-'
 export const STRIKE_ID = 'game-strike-'
 
 export default class GameForm extends React.Component {
-
-    
 
     constructor() {
         super();
@@ -49,27 +40,15 @@ export default class GameForm extends React.Component {
             })
     }
 
-    collectEntries() {
-        const data = []
-        for (let i = 0; i < this.state.numRows; i++) {
-            const hours = $('#'+HOURS_ID+i).val()
-            let strike = false
-            if(!isNaN(hours) && hours > 0) {
-                strike = $('#'+STRIKE_ID+i).prop('checked')
-            }
-
-            data[i] = [hours, strike]
-            
+    sendSelection(change) {
+        const data = {
+            update: change, // {companies_name: ... , hours: ... , strike: ...}
+            week: this.state.week,
         }
-        return JSON.stringify(data)
-    }
-
-    sendSelection() {
-        const data = this.collectEntries();
-        console.log("Sending data: " + data)
+        
         fetch('/api/sendSelection', {
             method: 'POST',
-            body: data,
+            body: JSON.stringify(data),
             headers: {
                 'Content-Type': 'application/json'
             }
@@ -101,7 +80,7 @@ export default class GameForm extends React.Component {
                         <Box className="col-12" mt={2}>
                             <Typography variant="h6" id="game-form-name">
                                 Student Name
-                                </Typography>
+                            </Typography>
                         </Box>
 
                     </Box>
@@ -154,7 +133,7 @@ export default class GameForm extends React.Component {
                 </Box>
                 {this.state.companies.map((c, i) => {
                     return (
-                        <GameRow company={c} index={i} parent={this}/>
+                        <GameRow key={i} company={c} index={i} parent={this}/>
                     );
                 })}
                 

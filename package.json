@@ -30,10 +30,14 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "db": "node server/database/buildDatabase.js"
   },
   "eslintConfig": {
-    "extends": "react-app"
+    "extends": "react-app",
+    "plugins": ["react-hooks"],
+    "rules": {"react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn"}
   },
   "browserslist": {
     "production": [
@@ -47,5 +51,8 @@
       "last 1 safari version"
     ]
   },
-  "proxy": "http://localhost:3001"
+  "proxy": "http://localhost:3001",
+  "devDependencies": {
+    "eslint-plugin-react-hooks": "^2.3.0"
+  }
 }

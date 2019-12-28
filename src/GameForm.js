@@ -16,20 +16,25 @@ export default class GameForm extends React.Component {
         this.state = {
             isLoaded: false,
             companies: [],
-            saveStatus: "Not Saved",
+            saveStatus: "Saved " + new Date().toLocaleTimeString(),
             disableAll: false,
             week: 0
         }
+        this.timer = undefined
+        // stack to determine set the saved status only after the most recent request is successful
+        // incremented in GameRow
+        this.selectionStack = 0; 
     }
 
     componentDidMount() {
-        fetch('/api/getCompanies')
+        fetch('/api/getGameFormData')
             .then(res => {
                 return res.json();
             }).then(data => {
                 const tempState = {...this.state}
                 const len = data.length
-                tempState.companies = data.sessions
+                tempState.companies = data.rows
+                tempState.wasSubmitted = data.submitted
                 tempState.week = data.week
                 tempState.isLoaded = true
                 tempState.numRows = len
@@ -45,7 +50,6 @@ export default class GameForm extends React.Component {
             update: change, // {companies_name: ... , hours: ... , strike: ...}
             week: this.state.week,
         }
-        
         fetch('/api/sendSelection', {
             method: 'POST',
             body: JSON.stringify(data),
@@ -53,12 +57,25 @@ export default class GameForm extends React.Component {
                 'Content-Type': 'application/json'
             }
         }).then((res) => {
+            this.selectionStack--
             const status = res.status
-            if(status === 200) {
+            if(status === 200 && this.selectionStack === 0) {
                 const newState = {...this.state}
-                newState.saveStatus = "Saved " + new Date().toTimeString();
+                newState.saveStatus = "Saved " + new Date().toLocaleTimeString();
+                this.setState(newState)
+                return;
             }
+            console.log("The user update was not handled properly by the server")
         })
+        
+    }
+
+    setNotSaved() {
+        if(this.state.saveStatus !== "Not Saved") {
+            const newState = {...this.state}
+            newState.saveStatus = "Not Saved";
+            this.setState(newState)
+        }
     }
 
 

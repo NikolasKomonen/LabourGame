@@ -1,4 +1,4 @@
-const companies = require('./routes/game');
+
 const SQL = require('./database/sqliteIndex')
 
 const express = require('express')
@@ -7,9 +7,8 @@ const port = 3001
 const db = new SQL('server/database/dbFile.sqlite'); // May have to change relative to the index.js file else the workspace
 const session = require('express-session')
 const encryption = require('./encryption')
-const sessionAccounts = {
-
-}
+const sessionAccounts = {}
+const admin = require('./administration')
 
 app.use(session({
 	secret: 'my-ass-hole',
@@ -21,8 +20,57 @@ app.use(express.json())
 
 app.use(express.static('build'))
 
-app.get('/api/getCompanies', (req, res) => {
-    companies.getCompanies(req, res, db, 1)
+app.get('/api/getGameFormData', (req, res) => {
+	const data = {}
+	const id = req.sessionID
+	const username = sessionAccounts[id]
+	const week = admin.currentWeek
+
+	db.get("SELECT  * FROM student_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, week]).then((row) => {
+		if(row) {
+			const submitted = row.submitted
+			if(submitted) {
+				data.submitted = true
+			}
+		}
+		else {
+			data.submitted = false
+			db.run("INSERT INTO student_game_weeks VALUES (?, ?, ?)", [username, week, false])
+		}
+		data.week = week
+	}).then(() => {
+		db.all(
+			`
+			SELECT 
+				sess.companies_name, brain, muscle, heart, COALESCE(accounts_username, ?) accounts_username, COALESCE(hours, 0) hours, COALESCE(strike, FALSE) strike 
+			FROM 
+				(SELECT * FROM company_sessions WHERE weeks_week=?) AS sess 
+			LEFT JOIN 
+				(SELECT * FROM user_selections WHERE accounts_username=?) AS selc 
+			ON 
+				sess.companies_name=selc.companies_name 
+				AND
+				sess.weeks_week=selc.weeks_week
+			`
+			
+			, [username, admin.currentWeek, username])
+		.then((rows) => {
+			// [ 
+			//	{ companies_name: 'Best Buy',
+			// 	  brain: 4,
+			//    muscle: 5,
+			//    heart: 2,
+			//    hours: 12,
+			//    strike: 0 
+			//  } , ... 
+			// ]
+			data.rows = rows
+		}).then(() => {
+			res.send(data)
+		})
+	})
+
+
 })
 
 app.post('/api/sendSelection', (req, res) => {
@@ -32,11 +80,15 @@ app.post('/api/sendSelection', (req, res) => {
 	const week = selection.week
 	const update = selection.update
 	const companyName = update.companies_name
-	const hours = update.hours
+	let hours = update.hours
+	if(isNaN(hours)) {
+		hours = 0
+	}
 	const strike = update.strike
 	if(username && week && companyName && (hours >= 0) && strike !== undefined) {
 		if(hours === 0) {
-			db.run("DELETE FROM user_selections WHERE accounts_username=? AND companies_name=? AND weeks_week=?", [username, companyName, week]).then(() => {
+			db.run("DELETE FROM user_selections WHERE accounts_username=? AND companies_name=? AND weeks_week=?", 
+			[username, companyName, week]).then(() => {
 				res.status(200).send()
 			})
 		}

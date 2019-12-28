@@ -5,15 +5,25 @@ import { BRAIN_ID, MUSCLE_ID, HEART_ID, STRIKE_ID } from './GameForm'
 
 export default class GameRow extends React.Component {
     constructor(props) {
-        super(props)
+        super(props);
+        const hours = parseInt(props.company.hours)
+        const brainValue = parseInt(props.company.brain) * hours
+        const muscleValue = parseInt(props.company.muscle) * hours
+        const heartValue = parseInt(props.company.heart) * hours
+        const strike = props.company.strike === 0 ? false : true
         this.state = {
-            hours: 0,
-            strikeEnabled: false,
-            strike: false,
-            brain: 0,
-            muscle: 0,
-            heart: 0,
+            hours: hours,
+            strikeEnabled: hours > 0,
+            strike: strike,
+            brain: brainValue,
+            muscle: muscleValue,
+            heart: heartValue,
         }
+        this.timer = undefined
+    }
+
+    componentDidMount() {
+        this.setState(this.state)
     }
 
     onChangedHours(hoursEntered) {
@@ -28,7 +38,7 @@ export default class GameRow extends React.Component {
                 heart: (this.props.company.heart * hoursEntered)
             }
             this.setState(newState, () => {
-                this.props.parent.sendSelection(this.getUpdatedSelection())
+                this.sendSelection()
             })
             return;
         }
@@ -42,18 +52,30 @@ export default class GameRow extends React.Component {
                 heart: 0
             }
             this.setState(newState, () => {
-                this.props.parent.sendSelection(this.getUpdatedSelection())
+                this.sendSelection()
             })
             return;
         }
 
     }
 
+    sendSelection() {
+        this.props.parent.setNotSaved();
+        if(this.timer) {
+            clearTimeout(this.timer)
+        }
+        else {
+            this.props.parent.selectionStack++;
+        }
+        const updatedSelection = this.getUpdatedSelection()
+        this.timer = setTimeout(() => {this.timer=undefined; this.props.parent.sendSelection(updatedSelection)} , 2000)
+    }
+
     onToggleStrike(checked) {
         const newState = { ...this.state }
         newState.strike = checked
         this.setState(newState, () => {
-            this.props.parent.sendSelection(this.getUpdatedSelection())
+            this.sendSelection()
         })
 
     }
@@ -75,6 +97,7 @@ export default class GameRow extends React.Component {
     }
 
     render() {
+        
         const company = this.props.company
         const index = this.props.index
         const gameForm = this.props.parent
@@ -102,7 +125,6 @@ export default class GameRow extends React.Component {
                                     disabled
                                     id={BRAIN_ID + index}
                                     label={String(company.brain)}
-    
                                     variant="filled"
                                     margin="dense"
                                     style={{ width: 60 }}

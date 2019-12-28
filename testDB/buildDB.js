@@ -1,5 +1,5 @@
 const SQL = require('./sqliteIndex')
-const db = new SQL('server/database/dbFile.sqlite')
+const db = new SQL('testDB/dbFile.sqlite')
 
 function createTables() {
     return new Promise((resolve, reject) => {
@@ -72,11 +72,11 @@ function insertStudentGameWeeks(username, week, isSubmitted) {
     return db.run(`INSERT INTO student_game_weeks VALUES (?, ?, ?)`, [username, week, isSubmitted])
 }
 
-function insertUserSelections(username, company_name, weeks_week, hours, strike) {
+function insertGameSelections(username, company_name, weeks_week, hours, strike) {
     return db.run('INSERT INTO user_selections VALUES (?, ?, ?, ?, ?)', [username, company_name, weeks_week, hours, strike])
 }
 
-function insertCompanySessions(company_name, weeks_week, brain, muscle, heart) {
+function insertGameSessions(company_name, weeks_week, brain, muscle, heart) {
     return db.run('INSERT INTO company_sessions VALUES(?, ?, ?, ?, ?)', [company_name, weeks_week, brain, muscle, heart])
 }
 
@@ -114,48 +114,63 @@ function insertMockData() {
             insertStudentGameWeeks('johnson22', 2, false),
             insertStudentGameWeeks('johnson22', 3, false),
             // Game Sessions
-            insertCompanySessions('Best Buy', 1, 2, 3, 5),
-            insertCompanySessions('Best Buy', 2, 4, 5, 2),
-            insertCompanySessions('No Frills', 1, 2, 3, 5),
-            insertCompanySessions('No Frills', 2, 75, 567, 76),
-            insertCompanySessions('Michaels Meats', 1, 2, 3, 5),
-            insertCompanySessions('Michaels Meats', 2, 2, 3, 5),
-            insertCompanySessions('Chings Chinese', 1, 6, 9, 7),
-            insertCompanySessions('Chings Chinese', 2, 2, 3, 5),
-            insertCompanySessions('MEDITATION', 1, 6, 6, 6),
-            insertCompanySessions('GYM', 1, 9, 8, 7),
-            insertCompanySessions('TUTORIAL', 1, 2, 3, 4),
-            insertCompanySessions('MEDITATION', 2, 222, 222, 222),
-            insertCompanySessions('GYM', 2, 333, 333, 333),
-            insertCompanySessions('TUTORIAL', 2, 444, 444, 444),
+            insertGameSessions('Best Buy', 1, 2, 3, 5),
+            insertGameSessions('Best Buy', 2, 4, 5, 2),
+            insertGameSessions('No Frills', 1, 2, 3, 5),
+            insertGameSessions('No Frills', 2, 75, 567, 76),
+            insertGameSessions('Michaels Meats', 1, 2, 3, 5),
+            insertGameSessions('Michaels Meats', 2, 2, 3, 5),
+            insertGameSessions('Chings Chinese', 1, 6, 9, 7),
+            insertGameSessions('Chings Chinese', 2, 2, 3, 5),
+            insertGameSessions('MEDITATION', 1, 6, 6, 6),
+            insertGameSessions('GYM', 1, 9, 8, 7),
+            insertGameSessions('TUTORIAL', 1, 2, 3, 4),
+            insertGameSessions('MEDITATION', 2, 222, 222, 222),
+            insertGameSessions('GYM', 2, 333, 333, 333),
+            insertGameSessions('TUTORIAL', 2, 444, 444, 444),
             //Game Selections
-            insertUserSelections('nikomo55', 'Best Buy', 1, 3, false),
-            insertUserSelections('nikomo55', 'No Frills', 1, 16, false),
-            insertUserSelections('nikomo55', 'Michaels Meats', 1, 8, false),
-            insertUserSelections('nikomo55', 'Chings Chinese', 1, 2, false),
-            insertUserSelections('nikomo55', 'Best Buy', 2, 12, false),
-            insertUserSelections('nikomo55', 'Michaels Meats', 2, 15, false),
-            insertUserSelections('nikomo55', 'Chings Chinese', 2, 53, true),
+            insertGameSelections('nikomo55', 'Best Buy', 1, 3, false),
+            insertGameSelections('nikomo55', 'No Frills', 1, 16, false),
+            insertGameSelections('nikomo55', 'Michaels Meats', 1, 8, false),
+            insertGameSelections('nikomo55', 'Chings Chinese', 1, 2, false),
+            insertGameSelections('nikomo55', 'Best Buy', 2, 12, false),
+            insertGameSelections('nikomo55', 'Michaels Meats', 2, 15, false),
+            insertGameSelections('nikomo55', 'Chings Chinese', 2, 53, true),
         
-            insertUserSelections('bill', 'Best Buy', 1, 33, false),
-            insertUserSelections('bill', 'No Frills', 1, 166, false),
-            insertUserSelections('bill', 'Michaels Meats', 1, 88, false),
-            insertUserSelections('bill', 'Chings Chinese', 1, 22, false),
-            insertUserSelections('bill', 'Best Buy', 2, 122, false),
-            insertUserSelections('bill', 'Michaels Meats', 2, 155, false),
-            insertUserSelections('bill', 'Chings Chinese', 2, 533, true)]
+            insertGameSelections('bill', 'Best Buy', 1, 33, false),
+            insertGameSelections('bill', 'No Frills', 1, 166, false),
+            insertGameSelections('bill', 'Michaels Meats', 1, 88, false),
+            insertGameSelections('bill', 'Chings Chinese', 1, 22, false),
+            insertGameSelections('bill', 'Best Buy', 2, 122, false),
+            insertGameSelections('bill', 'Michaels Meats', 2, 155, false),
+            insertGameSelections('bill', 'Chings Chinese', 2, 533, true)]
         ).then(() => resolve())
     })
 
 
 }
-createTables()
-.then(() => {
-        return insertMockData()
-    })
-.then(() => db.close())
+// createTables()
+// .then(() => {
+//         return insertMockData()
+//     })
+// .then(() => db.close())
 
-
+db.all(
+    `
+    SELECT 
+        sess.companies_name, sess.weeks_week, brain, muscle, heart, COALESCE(accounts_username, ?) accounts_username, COALESCE(hours, 0) hours, COALESCE(strike, FALSE) strike 
+    FROM 
+        (SELECT * FROM company_sessions WHERE weeks_week=?) AS sess 
+    LEFT JOIN 
+        (SELECT * FROM user_selections WHERE accounts_username=?) AS acc 
+    ON 
+        sess.companies_name=acc.companies_name 
+        AND
+        sess.weeks_week=acc.weeks_week
+    `
+    
+    , ["dog", 1, "dog"])
+            .then((rows) => {console.log(rows)})
 
 
 

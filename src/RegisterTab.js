@@ -61,6 +61,12 @@ class RegisterTab extends Component {
         }
     }
 
+    ifEnterPressed(keyCode) {
+      if(keyCode === 13) {
+          this.registerAccount()
+      }
+  }
+
     registerAccount() {
         const username = $('#register-username').val()
         const password = $('#register-password-final').val()
@@ -97,7 +103,7 @@ class RegisterTab extends Component {
                 <Typography component="h1" variant="h5">
                   Register
                 </Typography>
-                <form className={classes.form} onChange={() => {this.clearOldErrors()}}>
+                <form className={classes.form} onChange={() => {this.clearOldErrors()}} onKeyDown={(e) => {this.ifEnterPressed(e.keyCode)}}>
                   <TextField
                     variant="outlined"
                     margin="normal"

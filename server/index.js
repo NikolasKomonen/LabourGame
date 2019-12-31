@@ -25,7 +25,7 @@ app.get('/api/getGameFormData', (req, res) => {
 	const id = req.sessionID
 	const username = sessionAccounts[id]
 	const week = admin.currentWeek
-
+	data.username = username
 	db.get("SELECT  * FROM student_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, week]).then((row) => {
 		if(row) {
 			const submitted = row.submitted

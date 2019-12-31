@@ -1,7 +1,9 @@
-import React from 'react'
+import React, { Children } from 'react'
 import Typography from '@material-ui/core/Typography'
-import { Box, Button } from '@material-ui/core';
+import { Box, Button, withStyles, ButtonGroup, } from '@material-ui/core';
 import GameRow from './GameRow'
+import GameTotals from './GameTotals'
+import green from '@material-ui/core/colors/green'
 
 export const HOURS_ID = 'game-hours-'
 export const BRAIN_ID = 'game-brain-'
@@ -9,7 +11,28 @@ export const MUSCLE_ID = 'game-muscle-'
 export const HEART_ID = 'game-heart-'
 export const STRIKE_ID = 'game-strike-'
 
-export default class GameForm extends React.Component {
+const styles = withStyles({
+    availablePoints: {
+        background: green[600],
+        position: 'sticky',
+        top: 65,
+        color: 'white',
+        paddingTop: '40px',
+        paddingBottom: '40px',
+        zIndex: 5,
+    },
+    columnHeaders: {
+
+        position: 'sticky',
+        top: 155,
+        background: 'white',
+        paddingTop: '40px',
+        paddingBottom: '40px',
+        zIndex: 5,
+    }
+});
+
+class GameForm extends React.Component {
 
     constructor() {
         super();
@@ -18,12 +41,14 @@ export default class GameForm extends React.Component {
             companies: [],
             saveStatus: "Saved " + new Date().toLocaleTimeString(),
             disableAll: false,
-            week: 0
+            week: 0,
+            totalEarnings: 12345,
+            previousWeekEarnings: 999
         }
         this.timer = undefined
         // stack to determine set the saved status only after the most recent request is successful
         // incremented in GameRow
-        this.selectionStack = 0; 
+        this.selectionStack = 0;
     }
 
     componentDidMount() {
@@ -31,17 +56,20 @@ export default class GameForm extends React.Component {
             .then(res => {
                 return res.json();
             }).then(data => {
-                const tempState = {...this.state}
-                const len = data.length
+                const tempState = { ...this.state }
+                const len = data.rows.length
                 tempState.companies = data.rows
                 tempState.wasSubmitted = data.submitted
                 tempState.week = data.week
                 tempState.isLoaded = true
                 tempState.numRows = len
+                tempState.username = data.username
                 this.setState(tempState)
                 console.log("Set the state in did mount")
             }, (error) => {
-                console.log("Error fetching companies: "+ error)
+                console.log("Error fetching companies: " + error)
+            }).then(() => {
+                console.log("Children: ", Children.count(this.props.children))
             })
     }
 
@@ -59,20 +87,19 @@ export default class GameForm extends React.Component {
         }).then((res) => {
             this.selectionStack--
             const status = res.status
-            if(status === 200 && this.selectionStack === 0) {
-                const newState = {...this.state}
+            if (status === 200 && this.selectionStack === 0) {
+                const newState = { ...this.state }
                 newState.saveStatus = "Saved " + new Date().toLocaleTimeString();
                 this.setState(newState)
                 return;
             }
-            console.log("The user update was not handled properly by the server")
         })
-        
+
     }
 
     setNotSaved() {
-        if(this.state.saveStatus !== "Not Saved") {
-            const newState = {...this.state}
+        if (this.state.saveStatus !== "Not Saved") {
+            const newState = { ...this.state }
             newState.saveStatus = "Not Saved";
             this.setState(newState)
         }
@@ -80,41 +107,88 @@ export default class GameForm extends React.Component {
 
 
     render() {
-        const {error, isLoaded} = this.state;
-        if(error) {
+        const { error, isLoaded } = this.state;
+        if (error) {
             return <div>Error {error.message}</div>
         }
-        if(!isLoaded) {
+        if (!isLoaded) {
             return <div>Loading...</div>
         }
         return (
             <div>
-                <Box className="row border-bottom" pb={4}>
-                    <Box className="row col-sm-6" pl={3}>
-                        <Typography className="col-12" variant="h2" id="game-form-week">
+                <Box className="row col-12 border-bottom" pb={4} display="flex" justifyContent="space-between">
+                    <Box className="row col-md-4">
+                        <Typography className="col-12" variant="h2" id="game-form-week" noWrap>
                             Week {this.state.week}
-                            </Typography>
+                        </Typography>
                         <Box className="col-12" mt={2}>
                             <Typography variant="h6" id="game-form-name">
-                                Student Name
+                                User: <small>{this.state.username}</small>
                             </Typography>
                         </Box>
 
                     </Box>
-                    <Box className="row col-sm-6" pl={3} >
-                        <Box mt="auto" className="col-6" pt={3}>
+                    <Box className="row col-md-4">
+
+                        <Box className="col-12" display="flex" alignItems="flex-end">
+                            <Typography variant="h6" id="game-saved-status" >
+                                Previous week: <small>${this.state.previousWeekEarnings}</small>
+                            </Typography>
+                        </Box>
+                        <Box className="col-12" display="flex" alignItems="flex-end">
+                            <Typography variant="h6" id="game-saved-status">
+                                Total Earnings: <small>${this.state.totalEarnings}</small>
+                            </Typography>
+                        </Box>
+                    </Box>
+                    <Box className="row col-md-4">
+                        <Box mt="auto" className="col-6" pt={3} pr={0} display="flex" justifyContent="flex-end">
                             <Typography id="game-saved-status">
                                 {this.state.saveStatus}
                             </Typography>
                         </Box>
 
-                        <Box mt="auto" className="col-6" >
+                        <Box mt="auto" className="col-6" display="flex" pr={0} justifyContent="flex-end">
                             <Button id="game-submit-button" variant="contained" color="primary" disabled={this.disableAll}>Submit</Button>
                         </Box>
                     </Box>
                 </Box>
+                <Box className={this.props.classes.availablePoints + " row col-12 mt-3 py-3"} borderRadius={5}>
+                    <Box className="col-md-5 my-auto" display="flex" justifyContent="center">
+                        Available Points
+                    </Box>
+                    <Box className="col-md-6 p-0" display="flex">
+                        <Box className="col-4" display="flex" justifyContent="center">
 
-                <Box className="row col-12 mt-5 py-2 pr-3" borderTop={2} borderBottom={2}>
+                            <ButtonGroup size="large" aria-label="small outlined button group">
+                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>-</Button>
+                                <Button disabled style={{ color: "white", border: 'solid black 1px' }}>2</Button>
+                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>+</Button>
+
+                            </ButtonGroup>
+                        </Box>
+                        <Box className="col-4" display="flex" justifyContent="center">
+
+                            <ButtonGroup size="large" aria-label="small outlined button group">
+                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>-</Button>
+                                <Button disabled style={{ color: "white", border: 'solid black 1px' }}>2</Button>
+                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>+</Button>
+
+                            </ButtonGroup>
+                        </Box>
+                        <Box className="col-4" display="flex" justifyContent="center">
+
+                            <ButtonGroup size="large" aria-label="small outlined button group">
+                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>-</Button>
+                                <Button disabled style={{ color: "white", border: 'solid black 1px' }}>2</Button>
+                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>+</Button>
+
+                            </ButtonGroup>
+                        </Box>
+                    </Box>
+
+                </Box>
+                <Box className={this.props.classes.columnHeaders + " row col-12 mt-3 py-2 pr-3"} borderTop={2} borderBottom={2}>
                     <Box className="col-md-2 col-12" display="flex">
                         <Box className="mx-auto p-1" fontWeight="fontWeightBold" fontSize={26}>
                             Company
@@ -150,11 +224,14 @@ export default class GameForm extends React.Component {
                 </Box>
                 {this.state.companies.map((c, i) => {
                     return (
-                        <GameRow key={i} company={c} index={i} parent={this}/>
+                        <GameRow key={i} company={c} index={i} parent={this} />
                     );
                 })}
-                
+                <GameTotals />
+
             </div>
         );
     }
 }
+
+export default styles(GameForm)

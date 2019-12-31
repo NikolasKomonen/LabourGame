@@ -104,10 +104,10 @@ export default class GameRow extends React.Component {
         const name = company.companies_name
         const isCompany = !["MEDITATION", "GYM", "TUTORIAL"].includes(name)
         return (
-            <Box className="row col-12 mt-3" borderBottom={0.2}>
+            <Box className="row col-12 " borderBottom={ index >= (this.props.parent.state.numRows-1) ? 0 : 0.2}>
                 <FormControl className="col-12">
                     <FormGroup row>
-                        <Box className="col-md-2" display="flex" bgcolor={!isCompany ? "secondary.main" : null}>
+                        <Box className="col-md-2" display="flex" marginY={!isCompany ? 1 : 0} bgcolor={!isCompany ? "secondary.main" : null}>
                             <Box className="my-auto mx-auto" >
                                 <Typography>{company.companies_name}</Typography>
                             </Box>

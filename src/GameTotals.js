@@ -23,7 +23,7 @@ export default class GameRow extends React.Component {
 
     render() {
         return (
-            <Box className="row col-12 " borderBottom={2} borderTop={2}>
+            <Box className="col-12 " px={0} borderBottom={2} borderTop={2}>
                 <FormControl className="col-12">
                     <FormGroup row>
                         <Box className="col-md-2" display="flex">
@@ -31,14 +31,14 @@ export default class GameRow extends React.Component {
                                 <Typography variant="h5">Totals:</Typography>
                             </Box>
                         </Box>
-                        <Box className="col-md-3" display="flex" >
+                        <Box className="col-md-3 col-6" display="flex" >
                             <Box className="my-auto mx-auto">
-                                <TextField disabled value={this.state.totalHours} style={{ width: 150 }} id="game-hours-total" name="hours" variant="outlined" size="small"
+                                <TextField disabled value={this.state.totalHours}  id="game-hours-total" name="hours" variant="outlined" size="small"
                                     InputProps={{ endAdornment: <InputAdornment position="end">Hrs</InputAdornment>, className: styles.textField }}
                                 />
                             </Box >
                         </Box>
-                        <Box className="col-md-2 col-4" display="flex" >
+                        <Box className="col-md-2 col-2" display="flex" >
                             <Box className="my-auto mx-auto" >
                                 <TextField
                                     disabled
@@ -51,7 +51,7 @@ export default class GameRow extends React.Component {
                                 />
                             </Box>
                         </Box>
-                        <Box className="col-md-2 col-4" display="flex" >
+                        <Box className="col-md-2 col-2" display="flex" >
                             <Box className="my-auto mx-auto" >
                                 <TextField
                                     disabled
@@ -64,7 +64,7 @@ export default class GameRow extends React.Component {
                                 />
                             </Box>
                         </Box>
-                        <Box className="col-md-2 col-4" display="flex" >
+                        <Box className="col-md-2 col-2" display="flex" >
                             <Box className="my-auto mx-auto" >
                                 <TextField
                                     disabled

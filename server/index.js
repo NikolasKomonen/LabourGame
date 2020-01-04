@@ -26,18 +26,67 @@ app.get('/api/getGameFormData', (req, res) => {
 	const username = sessionAccounts[id]
 	const week = admin.currentWeek
 	data.username = username
-	db.get("SELECT  * FROM student_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, week]).then((row) => {
+	data.week = week
+	db.get("SELECT * FROM student_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, week]).then((row) => {
 		if(row) {
-			const submitted = row.submitted
-			if(submitted) {
-				data.submitted = true
-			}
+			data.submitted = row.submitted
+			data.available_brain = row.available_brain
+			data.available_muscle = row.available_muscle
+			data.available_heart = row.available_heart
 		}
-		else {
+		else { // student row for this weeks game doesnt exist yet
 			data.submitted = false
-			db.run("INSERT INTO student_game_weeks VALUES (?, ?, ?)", [username, week, false])
+			const lastWeek = week - 1
+			if(lastWeek === 0) { // We are on week 1
+				db.run("INSERT INTO student_game_weeks (accounts_username, weeks_week, submitted) VALUES (?, ?, ?)", [username, week, false])
+				data.total_profit = 0
+				data.week_profit = 0
+				data.availableBrain = 20
+				data.availableMuscle = 20
+				data.availableHeart = 20
+			}
+			else {
+				const getAdditional = 
+					(index, notJobs = [], additionalPoints) => {
+						return new Promise((resolve, reject) => {
+							const notJobsLen = notJobs.length
+							if(index >= notJobsLen) {
+								resolve()
+							}
+							console.log(username, " ", lastWeek, " ", notJobs[index])
+							db.get("SELECT hours FROM user_selections WHERE accounts_username=? AND weeks_week=? AND companies_name=?", [username, lastWeek, notJobs[index]])
+							.then((row) => {
+								additionalPoints[index] = row.hours
+								return;
+							}).catch((err) => {
+								console.log("Goofaz: ", err)
+							}).then(() => {
+								index++
+								getAdditional(index, notJobs, additionalPoints)
+							})
+						})
+					}
+				const notJobs = ["TUTORIAL", "GYM", "MEDITATION"]
+				let additionalPoints = []
+				getAdditional(0, notJobs, additionalPoints)
+				
+				db.get("SELECT * FROM student_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, lastWeek]).then((row) => {
+					if(row) {
+						data.total_profit = row.total_profit
+						data.week_profit = row.week_profit
+						data.available_brain = row.available_brain
+						data.available_muscle = row.available_muscle
+						data.available_heart = row.available_heart
+					}
+					else {
+						console.log("Last week student game week doesnt exist")
+					}
+				}).then(() => {
+					db.run("INSERT INTO student_game_weeks VALUES (?, ?, ?, ?, ?, ?, ?, ?)", [username, week, false, data.available_brain+additionalPoints[0], data.available_muscle+additionalPoints[1], data.available_heart+additionalPoints[2], data.week_profit, data.total_profit])
+				})
+			}
+			
 		}
-		data.week = week
 	}).then(() => {
 		db.all(
 			`
@@ -67,9 +116,9 @@ app.get('/api/getGameFormData', (req, res) => {
 			data.rows = rows
 		}).then(() => {
 			res.send(data)
+			console.log(data)
 		})
 	})
-
 
 })
 
@@ -84,7 +133,7 @@ app.post('/api/sendSelection', (req, res) => {
 	if(isNaN(hours)) {
 		hours = 0
 	}
-	const strike = update.strike
+	const strike = hours === 0 ? false : update.strike
 	if(username && week && companyName && (hours >= 0) && strike !== undefined) {
 		if(hours === 0) {
 			db.run("DELETE FROM user_selections WHERE accounts_username=? AND companies_name=? AND weeks_week=?", 
@@ -97,7 +146,7 @@ app.post('/api/sendSelection', (req, res) => {
 					console.log("Success: ", success)
 					res.status(200)
 					res.end()
-				}).catch((err) => {console.log("Opsie woopies made a dipey wipey. The data is wong."); res.status(500).end()})
+				}).catch((err) => {console.log("Bad data from /api/sendSelection."); res.status(500).end()})
 	}
 	else {
 		console.log("Not all information available in /api/sendSelection")

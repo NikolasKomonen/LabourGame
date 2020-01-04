@@ -3,7 +3,7 @@ import Typography from '@material-ui/core/Typography'
 import { Box, Button, withStyles, ButtonGroup, } from '@material-ui/core';
 import GameRow from './GameRow'
 import GameTotals from './GameTotals'
-import green from '@material-ui/core/colors/green'
+import indigo from '@material-ui/core/colors/indigo'
 
 export const HOURS_ID = 'game-hours-'
 export const BRAIN_ID = 'game-brain-'
@@ -12,11 +12,11 @@ export const HEART_ID = 'game-heart-'
 export const STRIKE_ID = 'game-strike-'
 
 const styles = withStyles({
-    availablePoints: {
-        background: green[600],
+    availablePointsContainer: {
+        background: indigo[500],
         position: 'sticky',
         top: 65,
-        color: 'white',
+        color: 'black',
         paddingTop: '40px',
         paddingBottom: '40px',
         zIndex: 5,
@@ -29,6 +29,10 @@ const styles = withStyles({
         paddingTop: '40px',
         paddingBottom: '40px',
         zIndex: 5,
+    },
+    availablePointsButtons: {
+        border: 'solid white 1px',
+        color: 'white',
     }
 });
 
@@ -39,7 +43,7 @@ class GameForm extends React.Component {
         this.state = {
             isLoaded: false,
             companies: [],
-            saveStatus: "Saved " + new Date().toLocaleTimeString(),
+            saveStatus: "Last Saved " + new Date().toLocaleTimeString(),
             disableAll: false,
             week: 0,
             totalEarnings: 12345,
@@ -89,7 +93,7 @@ class GameForm extends React.Component {
             const status = res.status
             if (status === 200 && this.selectionStack === 0) {
                 const newState = { ...this.state }
-                newState.saveStatus = "Saved " + new Date().toLocaleTimeString();
+                newState.saveStatus = "Last Saved " + new Date().toLocaleTimeString();
                 this.setState(newState)
                 return;
             }
@@ -115,110 +119,119 @@ class GameForm extends React.Component {
             return <div>Loading...</div>
         }
         return (
-            <div>
-                <Box className="row col-12 border-bottom" pb={4} display="flex" justifyContent="space-between">
-                    <Box className="row col-md-4">
-                        <Typography className="col-12" variant="h2" id="game-form-week" noWrap>
-                            Week {this.state.week}
-                        </Typography>
-                        <Box className="col-12" mt={2}>
-                            <Typography variant="h6" id="game-form-name">
-                                User: <small>{this.state.username}</small>
-                            </Typography>
-                        </Box>
+            <Box>
 
-                    </Box>
-                    <Box className="row col-md-4">
+                <Box className="col-12 border-bottom" pb={4}>
+                    <Box className="row">
+                        <Box className="col-md-4 col-12">
+                            <Typography className="col-12" variant="h2" id="game-form-week" noWrap>
+                                Week {this.state.week}
+                            </Typography>
+                            <Box className="col-12" mt={2}>
+                                <Typography variant="h6" id="game-form-name">
+                                    User: <small>{this.state.username}</small>
+                                </Typography>
+                            </Box>
 
-                        <Box className="col-12" display="flex" alignItems="flex-end">
-                            <Typography variant="h6" id="game-saved-status" >
-                                Previous week: <small>${this.state.previousWeekEarnings}</small>
-                            </Typography>
                         </Box>
-                        <Box className="col-12" display="flex" alignItems="flex-end">
-                            <Typography variant="h6" id="game-saved-status">
-                                Total Earnings: <small>${this.state.totalEarnings}</small>
-                            </Typography>
+                        <Box className="col-md-4 col-12" display="flex" alignItems="flex-end">
+                            <Box>
+                            <Box className="col-12" >
+                                <Typography variant="h6" id="game-saved-status" >
+                                    Previous week: <small>${this.state.previousWeekEarnings}</small>
+                                </Typography>
+                            </Box>
+                            <Box className="col-12 " >
+                                <Typography variant="h6" id="game-saved-status">
+                                    Total Earnings: <small>${this.state.totalEarnings}</small>
+                                </Typography>
+                            </Box>
+                            </Box>
                         </Box>
-                    </Box>
-                    <Box className="row col-md-4">
-                        <Box mt="auto" className="col-6" pt={3} pr={0} display="flex" justifyContent="flex-end">
-                            <Typography id="game-saved-status">
-                                {this.state.saveStatus}
-                            </Typography>
-                        </Box>
+                        <Box className="col-md-4 col-12" pr={0} display="flex" justifyContent="center">
+                            <Box mt="auto" className="col-6" pt={3} pr={0} >
+                                <Typography id="game-saved-status">
+                                    {this.state.saveStatus}
+                                </Typography>
+                            </Box>
 
-                        <Box mt="auto" className="col-6" display="flex" pr={0} justifyContent="flex-end">
-                            <Button id="game-submit-button" variant="contained" color="primary" disabled={this.disableAll}>Submit</Button>
+                            <Box mt="auto" className="col-6"  display="flex" justifyContent="flex-end" pr={0} >
+                                <Button id="game-submit-button" variant="contained" color="primary" disabled={this.disableAll}>Submit</Button>
+                            </Box>
                         </Box>
                     </Box>
                 </Box>
-                <Box className={this.props.classes.availablePoints + " row col-12 mt-3 py-3"} borderRadius={5}>
-                    <Box className="col-md-5 my-auto" display="flex" justifyContent="center">
+
+                <Box className={this.props.classes.availablePointsContainer + " col-12 mt-3 py-3"} borderRadius={5}>
+                    <Box className="row">
+                    <Box className="col-md-5 my-auto" style={{color:'white'}}display="flex" justifyContent="center">
                         Available Points
                     </Box>
                     <Box className="col-md-6 p-0" display="flex">
                         <Box className="col-4" display="flex" justifyContent="center">
 
                             <ButtonGroup size="large" aria-label="small outlined button group">
-                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>-</Button>
-                                <Button disabled style={{ color: "white", border: 'solid black 1px' }}>2</Button>
-                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>+</Button>
+                                <Button hidden={this.state.week !== 1} className={this.props.classes.availablePointsButtons}>-</Button>
+                                <Button disabled style={{ color: "white", border: 'solid white 1px' }}>2</Button>
+                                <Button hidden={this.state.week !== 1} className={this.props.classes.availablePointsButtons}>+</Button>
 
                             </ButtonGroup>
                         </Box>
                         <Box className="col-4" display="flex" justifyContent="center">
 
                             <ButtonGroup size="large" aria-label="small outlined button group">
-                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>-</Button>
-                                <Button disabled style={{ color: "white", border: 'solid black 1px' }}>2</Button>
-                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>+</Button>
+                                <Button hidden={this.state.week !== 1} className={this.props.classes.availablePointsButtons}>-</Button>
+                                <Button disabled style={{ color: "white", border: 'solid white 1px' }}>2</Button>
+                                <Button hidden={this.state.week !== 1} className={this.props.classes.availablePointsButtons}>+</Button>
 
                             </ButtonGroup>
                         </Box>
                         <Box className="col-4" display="flex" justifyContent="center">
 
                             <ButtonGroup size="large" aria-label="small outlined button group">
-                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>-</Button>
-                                <Button disabled style={{ color: "white", border: 'solid black 1px' }}>2</Button>
-                                <Button hidden={this.state.week !== 1} style={{ color: "white" }}>+</Button>
+                                <Button hidden={this.state.week !== 1} className={this.props.classes.availablePointsButtons}>-</Button>
+                                <Button disabled style={{ color: "white", border: 'solid white 1px' }}>2</Button>
+                                <Button hidden={this.state.week !== 1} className={this.props.classes.availablePointsButtons}>+</Button>
 
                             </ButtonGroup>
                         </Box>
+                    </Box>
                     </Box>
 
                 </Box>
-                <Box className={this.props.classes.columnHeaders + " row col-12 mt-3 py-2 pr-3"} borderTop={2} borderBottom={2}>
-                    <Box className="col-md-2 col-12" display="flex">
-                        <Box className="mx-auto p-1" fontWeight="fontWeightBold" fontSize={26}>
-                            Company
+                <Box className={this.props.classes.columnHeaders + " col-12 mt-3 py-2 pr-3"} borderTop={2} borderBottom={2}>
+                    <Box className="row">
+                        <Box className="col-md-2 col-12" display="flex">
+                            <Box className="mx-auto p-1" fontWeight="fontWeightBold" fontSize={26}>
+                                Company
                         </Box>
-                    </Box>
-                    <Box className="col-md-3 col-12" display="flex">
-                        <Box className="mx-auto p-1" fontWeight="fontWeightBold" fontSize={26}>
-                            Hours
                         </Box>
-                    </Box>
-                    <Box className="col-md-6 col-12 p-0 py-md-0 py-3" display="flex">
-                        <Box className="col-4" display="flex">
-                            <Box className="mx-auto my-auto" fontWeight="fontWeightMedium" fontSize={18}>
-                                Brain
+                        <Box className="col-md-3 col-4" display="flex">
+                            <Box className="mx-auto p-1" fontWeight="fontWeightBold" fontSize={26}>
+                                Hours
+                        </Box>
+                        </Box>
+                        <Box className="col-md-6 col-8 p-0 py-md-0 py-3" display="flex">
+                            <Box className="col-4" display="flex">
+                                <Box className="mx-auto my-auto" fontWeight="fontWeightMedium" fontSize={18}>
+                                    Brain
+                            </Box>
+                            </Box>
+                            <Box className="col-4" display="flex">
+                                <Box className="mx-auto my-auto" fontWeight="fontWeightMedium" fontSize={18}>
+                                    Muscle
+                            </Box>
+                            </Box>
+                            <Box className="col-4" display="flex">
+                                <Box className="mx-auto my-auto" fontWeight="fontWeightMedium" fontSize={18}>
+                                    Heart
+                            </Box>
                             </Box>
                         </Box>
-                        <Box className="col-4" display="flex">
-                            <Box className="mx-auto my-auto" fontWeight="fontWeightMedium" fontSize={18}>
-                                Muscle
-                            </Box>
+                        <Box className="col-md-1 col-12" display="flex">
+                            <Box className="mx-auto p-1" fontWeight="fontWeightBold" fontSize={26}>
+                                Strike
                         </Box>
-                        <Box className="col-4" display="flex">
-                            <Box className="mx-auto my-auto" fontWeight="fontWeightMedium" fontSize={18}>
-                                Heart
-                            </Box>
-                        </Box>
-                    </Box>
-                    <Box className="col-md-1 col-12" display="flex">
-                        <Box className="mx-auto p-1" fontWeight="fontWeightBold" fontSize={26}>
-                            Strike
                         </Box>
                     </Box>
                 </Box>
@@ -229,7 +242,7 @@ class GameForm extends React.Component {
                 })}
                 <GameTotals />
 
-            </div>
+            </Box>
         );
     }
 }

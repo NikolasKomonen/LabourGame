@@ -17,7 +17,9 @@ function createTables() {
                 brain integer,
                 muscle integer,
                 heart integer,
-                PRIMARY KEY (companies_name, weeks_week)
+                PRIMARY KEY (companies_name, weeks_week),
+                FOREIGN KEY(companies_name) REFERENCES companies(name),
+                FOREIGN KEY(weeks_week) REFERENCES weeks(week)
                 )`
         
         const companies = `CREATE TABLE IF NOT EXISTS companies (
@@ -34,14 +36,24 @@ function createTables() {
                 weeks_week integer,
                 hours integer DEFAULT 0,
                 strike boolean DEFAULT FALSE,
-                PRIMARY KEY (accounts_username, companies_name, weeks_week)
+                PRIMARY KEY (accounts_username, companies_name, weeks_week),
+                FOREIGN KEY(accounts_username) REFERENCES accounts(username),
+                FOREIGN KEY(companies_name) REFERENCES companies(name),
+                FOREIGN KEY(weeks_week) REFERENCES weeks(week)
                 )`
 
         const student_game_weeks = `CREATE TABLE IF NOT EXISTS student_game_weeks (
                 accounts_username varchar(40),
                 weeks_week integer,
-                submitted binary,
-                PRIMARY KEY (accounts_username, weeks_week)
+                submitted binary DEFAULT 0,
+                available_brain integer DEFAULT 20,
+                available_muscle integer DEFAULT 20,
+                available_heart integer DEFAULT 20,
+                week_profit integer DEFAULT 0,
+                total_profit integer DEFAULT 0,
+                PRIMARY KEY (accounts_username, weeks_week),
+                FOREIGN KEY(accounts_username) REFERENCES accounts(username),
+                FOREIGN KEY(weeks_week) REFERENCES weeks(week)
                 )`
 
         Promise.all([db.run(accounts), 
@@ -68,8 +80,8 @@ function insertAccounts(username, password, salt, isAdmin) {
     return db.run('INSERT INTO accounts VALUES (?, ?, ?, ?)', [username, password, salt, isAdmin])
 }
 
-function insertStudentGameWeeks(username, week, isSubmitted) {
-    return db.run(`INSERT INTO student_game_weeks VALUES (?, ?, ?)`, [username, week, isSubmitted])
+function insertStudentGameWeeks(username, week, isSubmitted, available_brain, available_muscle, available_heart, total_profit, last_week_profit) {
+    return db.run(`INSERT INTO student_game_weeks VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [username, week, isSubmitted, available_brain, available_muscle, available_heart, total_profit, last_week_profit])
 }
 
 function insertUserSelections(username, company_name, weeks_week, hours, strike) {
@@ -101,18 +113,18 @@ function insertMockData() {
             insertWeeks(5),
             // Accounts
             // insertAccounts('a', 'a', 'salty-salt', false),
-            // insertAccounts('nikomo55', 'plopplop222', 'salty-salt', false),
+            // insertAccounts('nikomo55', 'poppop', 'salty-salt', false),
             // insertAccounts('johnson22', 'blasterPasswer', 'salty-salt', false),
             // insertAccounts('kittykat666', 'firePassword', 'salty-salt', false),
             // insertAccounts('IAmAdmin', 'passwordDragon', 'salty-salt', true),
             // insertAccounts('willy52', 'password123', 'salty-salt', false),
             // Student Game Weeks
-            insertStudentGameWeeks('nikomo55', 1, false),
-            insertStudentGameWeeks('nikomo55', 2, false),
-            insertStudentGameWeeks('nikomo55', 3, false),
-            insertStudentGameWeeks('johnson22', 1, false),
-            insertStudentGameWeeks('johnson22', 2, false),
-            insertStudentGameWeeks('johnson22', 3, false),
+            // insertStudentGameWeeks('nikomo55', 1, false, 20, 20, 20, 0, 0),
+            // insertStudentGameWeeks('nikomo55', 2, false, 20, 20, 20, 0, 0),
+            // insertStudentGameWeeks('nikomo55', 3, false, 20, 20, 20, 0, 0),
+            // insertStudentGameWeeks('johnson22', 1, false, 20, 20, 20, 0, 0),
+            // insertStudentGameWeeks('johnson22', 2, false, 20, 20, 20, 0, 0),
+            // insertStudentGameWeeks('johnson22', 3, false, 20, 20, 20, 0, 0),
             // Game Sessions
             insertCompanySessions('Best Buy', 1, 2, 3, 5),
             insertCompanySessions('Best Buy', 2, 4, 5, 2),

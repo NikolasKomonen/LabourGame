@@ -1,5 +1,6 @@
 import React from 'react'
 import Typography from '@material-ui/core/Typography'
+import {sizing} from '@material-ui/system'
 import { Box, TextField, FormControl, FormControlLabel, FormGroup, Checkbox, InputAdornment } from '@material-ui/core';
 import { BRAIN_ID, MUSCLE_ID, HEART_ID, STRIKE_ID } from './GameForm'
 
@@ -44,7 +45,7 @@ export default class GameRow extends React.Component {
         }
         else if (hoursEntered === undefined || hoursEntered === null || hoursEntered.length === 0) {
             const newState = {
-                hours: undefined,
+                hours: '',
                 strikeEnabled: false,
                 strike: this.state.strike,
                 brain: 0,
@@ -104,7 +105,7 @@ export default class GameRow extends React.Component {
         const name = company.companies_name
         const isCompany = !["MEDITATION", "GYM", "TUTORIAL"].includes(name)
         return (
-            <Box className="row col-12 " borderBottom={ index >= (this.props.parent.state.numRows-1) ? 0 : 0.2}>
+            <Box className="col-12 " px={0} borderBottom={ index >= (this.props.parent.state.numRows-1) ? 0 : 0.2}>
                 <FormControl className="col-12">
                     <FormGroup row>
                         <Box className="col-md-2" display="flex" marginY={!isCompany ? 1 : 0} bgcolor={!isCompany ? "secondary.main" : null}>
@@ -112,14 +113,14 @@ export default class GameRow extends React.Component {
                                 <Typography>{company.companies_name}</Typography>
                             </Box>
                         </Box>
-                        <Box className="col-md-3" display="flex" >
+                        <Box className="col-md-3 col-6" display="flex" >
                             <Box className="my-auto mx-auto">
-                                <TextField disabled={gameForm.state.disableAll} value={this.state.hours} style={{ width: 150 }} id={"game-hours-" + index} name="hours" variant="outlined" size="small"
+                                <TextField disabled={gameForm.state.disableAll} value={this.state.hours}  id={"game-hours-" + index} name="hours" variant="outlined" size="small"
                                     InputProps={{ endAdornment: <InputAdornment position="end">Hrs</InputAdornment>, }}
                                     onChange={(e) => this.onChangedHours(e.target.value)} />
                             </Box >
                         </Box>
-                        <Box className="col-md-2 col-4" display="flex" >
+                        <Box className="col-md-2 col-2" display="flex" >
                             <Box className="my-auto mx-auto" >
                                 <TextField
                                     disabled
@@ -133,7 +134,7 @@ export default class GameRow extends React.Component {
                                 />
                             </Box>
                         </Box>
-                        <Box className="col-md-2 col-4" display="flex" >
+                        <Box className="col-md-2 col-2" display="flex" >
                             <Box className="my-auto mx-auto" >
                                 <TextField
                                     disabled
@@ -147,7 +148,7 @@ export default class GameRow extends React.Component {
                                 />
                             </Box>
                         </Box>
-                        <Box className="col-md-2 col-4" display="flex" >
+                        <Box className="col-md-2 col-2" display="flex" >
                             <Box className="my-auto mx-auto" >
                                 <TextField
                                     disabled
@@ -166,6 +167,7 @@ export default class GameRow extends React.Component {
 
                                 <Box className="col-md-1" display="flex">
                                     <FormControlLabel
+                                        hidden={!this.state.strikeEnabled}
                                         className="my-auto mx-auto"
                                         value="end"
                                         control={<Checkbox checked={this.state.strike} color="primary" id={STRIKE_ID + index} onChange={(e) => this.onToggleStrike(e.target.checked)} />}

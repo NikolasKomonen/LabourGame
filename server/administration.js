@@ -1,4 +1,4 @@
-const currentWeek = 2;
+const currentWeek = 1;
 
 module.exports = {
     currentWeek: currentWeek

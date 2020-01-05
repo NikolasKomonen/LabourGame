@@ -42,13 +42,21 @@ function createTables() {
                 FOREIGN KEY(weeks_week) REFERENCES weeks(week)
                 )`
 
-        const student_game_weeks = `CREATE TABLE IF NOT EXISTS student_game_weeks (
+        const user_game_weeks = `CREATE TABLE IF NOT EXISTS user_game_weeks (
                 accounts_username varchar(40),
                 weeks_week integer,
                 submitted binary DEFAULT 0,
                 available_brain integer DEFAULT 20,
                 available_muscle integer DEFAULT 20,
                 available_heart integer DEFAULT 20,
+                PRIMARY KEY (accounts_username, weeks_week),
+                FOREIGN KEY(accounts_username) REFERENCES accounts(username),
+                FOREIGN KEY(weeks_week) REFERENCES weeks(week)
+                )`
+
+        const user_profit_weeks = `CREATE TABLE IF NOT EXISTS user_profit_weeks (
+                accounts_username varchar(40),
+                weeks_week integer,
                 week_profit integer DEFAULT 0,
                 total_profit integer DEFAULT 0,
                 PRIMARY KEY (accounts_username, weeks_week),
@@ -61,7 +69,8 @@ function createTables() {
                      db.run(companies), 
                      db.run(weeks), 
                      db.run(user_selections), 
-                     db.run(student_game_weeks)])
+                     db.run(user_game_weeks),
+                     db.run(user_profit_weeks)])
                         .then(() => resolve()).catch((reject) => {console.log("Error when building table: " + reject)})
     })
 
@@ -81,7 +90,7 @@ function insertAccounts(username, password, salt, isAdmin) {
 }
 
 function insertStudentGameWeeks(username, week, isSubmitted, available_brain, available_muscle, available_heart, total_profit, last_week_profit) {
-    return db.run(`INSERT INTO student_game_weeks VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [username, week, isSubmitted, available_brain, available_muscle, available_heart, total_profit, last_week_profit])
+    return db.run(`INSERT INTO user_game_weeks VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [username, week, isSubmitted, available_brain, available_muscle, available_heart, total_profit, last_week_profit])
 }
 
 function insertUserSelections(username, company_name, weeks_week, hours, strike) {
@@ -92,6 +101,10 @@ function insertCompanySessions(company_name, weeks_week, brain, muscle, heart) {
     return db.run('INSERT INTO company_sessions VALUES(?, ?, ?, ?, ?)', [company_name, weeks_week, brain, muscle, heart])
 }
 
+function insertUserProfitWeeks(username, week, weekProfit, totalProfit) {
+    return db.run('INSERT INTO user_profit_weeks VALUES(?, ?, ?, ?)', [username, week, weekProfit, totalProfit]) 
+}
+
 function insertMockData() {
     
     return new Promise((resolve, reject) => {
@@ -100,8 +113,8 @@ function insertMockData() {
             //Companies
             insertCompanies('Best Buy'),
             insertCompanies('No Frills'),
-            insertCompanies('Michaels Meats'),
-            insertCompanies('Chings Chinese'),
+            insertCompanies('BlockBuster'),
+            insertCompanies('Loblaws'),
             insertCompanies('MEDITATION'),
             insertCompanies('GYM'),
             insertCompanies('TUTORIAL'),
@@ -113,7 +126,7 @@ function insertMockData() {
             insertWeeks(5),
             // Accounts
             // insertAccounts('a', 'a', 'salty-salt', false),
-            // insertAccounts('nikomo55', 'poppop', 'salty-salt', false),
+            insertAccounts('nikomo55', '8ba9a12f5214f97d3200aab35d8c577429a344d35d5403a7e2d81e666e83820eb7dc124e626d401bf09643c39e93866bdd2a08cddbfb341bf7e05770f203e4a1', '435c850e583626e5', false),
             // insertAccounts('johnson22', 'blasterPasswer', 'salty-salt', false),
             // insertAccounts('kittykat666', 'firePassword', 'salty-salt', false),
             // insertAccounts('IAmAdmin', 'passwordDragon', 'salty-salt', true),
@@ -126,36 +139,48 @@ function insertMockData() {
             // insertStudentGameWeeks('johnson22', 2, false, 20, 20, 20, 0, 0),
             // insertStudentGameWeeks('johnson22', 3, false, 20, 20, 20, 0, 0),
             // Game Sessions
-            insertCompanySessions('Best Buy', 1, 2, 3, 5),
-            insertCompanySessions('Best Buy', 2, 4, 5, 2),
-            insertCompanySessions('No Frills', 1, 2, 3, 5),
-            insertCompanySessions('No Frills', 2, 75, 567, 76),
-            insertCompanySessions('Michaels Meats', 1, 2, 3, 5),
-            insertCompanySessions('Michaels Meats', 2, 2, 3, 5),
-            insertCompanySessions('Chings Chinese', 1, 6, 9, 7),
-            insertCompanySessions('Chings Chinese', 2, 2, 3, 5),
-            insertCompanySessions('MEDITATION', 1, 6, 6, 6),
-            insertCompanySessions('GYM', 1, 9, 8, 7),
-            insertCompanySessions('TUTORIAL', 1, 2, 3, 4),
-            insertCompanySessions('MEDITATION', 2, 222, 222, 222),
-            insertCompanySessions('GYM', 2, 333, 333, 333),
-            insertCompanySessions('TUTORIAL', 2, 444, 444, 444),
+            insertCompanySessions('Best Buy', 1, 1, 2, 3),
+            insertCompanySessions('Best Buy', 2, 2, 2, 2),
+            insertCompanySessions('Best Buy', 3, 3, 3, 3),
+            insertCompanySessions('No Frills', 1, 1, 2, 3),
+            insertCompanySessions('No Frills', 2, 2, 2, 2),
+            insertCompanySessions('No Frills', 3, 3, 3, 3),
+            insertCompanySessions('BlockBuster', 1, 1, 2, 3),
+            insertCompanySessions('BlockBuster', 2, 2, 2, 2),
+            insertCompanySessions('BlockBuster', 3, 3, 3, 3),
+            insertCompanySessions('Loblaws', 1, 1, 2, 3),
+            insertCompanySessions('Loblaws', 2, 2, 2, 2),
+            insertCompanySessions('Loblaws', 3, 3, 3, 3),
+            insertCompanySessions('TUTORIAL', 1, 1, 2, 3),
+            insertCompanySessions('TUTORIAL', 2, 2, 2, 2),
+            insertCompanySessions('TUTORIAL', 3, 3, 3, 3),
+            insertCompanySessions('GYM', 1, 1, 2, 3),
+            insertCompanySessions('GYM', 2, 2, 2, 2),
+            insertCompanySessions('GYM', 3, 3, 3, 3),
+            insertCompanySessions('MEDITATION', 1, 1, 2, 3),
+            insertCompanySessions('MEDITATION', 2, 2, 2, 2),
+            insertCompanySessions('MEDITATION', 3, 3, 3, 3),
+            
+            // insertUserProfitWeeks('nikomo55', 1, 22, 55),
+            // insertUserProfitWeeks('nikomo55', 1, 66, 77),
+            // insertUserProfitWeeks('nikomo55', 1, 99, 1000)
             //Game Selections
-            insertUserSelections('nikomo55', 'Best Buy', 1, 3, false),
-            insertUserSelections('nikomo55', 'No Frills', 1, 16, false),
-            insertUserSelections('nikomo55', 'Michaels Meats', 1, 8, false),
-            insertUserSelections('nikomo55', 'Chings Chinese', 1, 2, false),
-            insertUserSelections('nikomo55', 'Best Buy', 2, 12, false),
-            insertUserSelections('nikomo55', 'Michaels Meats', 2, 15, false),
-            insertUserSelections('nikomo55', 'Chings Chinese', 2, 53, true),
+            // insertUserSelections('nikomo55', 'Best Buy', 1, 3, false),
+            // insertUserSelections('nikomo55', 'No Frills', 1, 16, false),
+            // insertUserSelections('nikomo55', 'Michaels Meats', 1, 8, false),
+            // insertUserSelections('nikomo55', 'Chings Chinese', 1, 2, false),
+            // insertUserSelections('nikomo55', 'Best Buy', 2, 12, false),
+            // insertUserSelections('nikomo55', 'Michaels Meats', 2, 15, false),
+            // insertUserSelections('nikomo55', 'Chings Chinese', 2, 53, true),
         
-            insertUserSelections('bill', 'Best Buy', 1, 33, false),
-            insertUserSelections('bill', 'No Frills', 1, 166, false),
-            insertUserSelections('bill', 'Michaels Meats', 1, 88, false),
-            insertUserSelections('bill', 'Chings Chinese', 1, 22, false),
-            insertUserSelections('bill', 'Best Buy', 2, 122, false),
-            insertUserSelections('bill', 'Michaels Meats', 2, 155, false),
-            insertUserSelections('bill', 'Chings Chinese', 2, 533, true)]
+            // insertUserSelections('bill', 'Best Buy', 1, 33, false),
+            // insertUserSelections('bill', 'No Frills', 1, 166, false),
+            // insertUserSelections('bill', 'Michaels Meats', 1, 88, false),
+            // insertUserSelections('bill', 'Chings Chinese', 1, 22, false),
+            // insertUserSelections('bill', 'Best Buy', 2, 122, false),
+            // insertUserSelections('bill', 'Michaels Meats', 2, 155, false),
+            // insertUserSelections('bill', 'Chings Chinese', 2, 533, true)
+        ]
         ).then(() => resolve())
     })
 

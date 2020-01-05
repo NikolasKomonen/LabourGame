@@ -37,7 +37,7 @@ function createTables() {
                 PRIMARY KEY (accounts_username, companies_name, weeks_week)
                 )`
 
-        const student_game_weeks = `CREATE TABLE IF NOT EXISTS student_game_weeks (
+        const user_game_weeks = `CREATE TABLE IF NOT EXISTS user_game_weeks (
                 accounts_username varchar(40),
                 weeks_week integer,
                 submitted binary,
@@ -49,7 +49,7 @@ function createTables() {
                      db.run(companies), 
                      db.run(weeks), 
                      db.run(user_selections), 
-                     db.run(student_game_weeks)])
+                     db.run(user_game_weeks)])
                         .then(() => resolve()).catch((reject) => {console.log("Error when building table: " + reject)})
     })
 
@@ -69,7 +69,7 @@ function insertAccounts(username, password, salt, isAdmin) {
 }
 
 function insertStudentGameWeeks(username, week, isSubmitted) {
-    return db.run(`INSERT INTO student_game_weeks VALUES (?, ?, ?)`, [username, week, isSubmitted])
+    return db.run(`INSERT INTO user_game_weeks VALUES (?, ?, ?)`, [username, week, isSubmitted])
 }
 
 function insertGameSelections(username, company_name, weeks_week, hours, strike) {

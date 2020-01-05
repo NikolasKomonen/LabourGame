@@ -1,6 +1,5 @@
 import React from 'react'
 import Typography from '@material-ui/core/Typography'
-import {sizing} from '@material-ui/system'
 import { Box, TextField, FormControl, FormControlLabel, FormGroup, Checkbox, InputAdornment } from '@material-ui/core';
 import { BRAIN_ID, MUSCLE_ID, HEART_ID, STRIKE_ID } from './GameForm'
 
@@ -24,37 +23,45 @@ export default class GameRow extends React.Component {
     }
 
     componentDidMount() {
+        this.props.parent.updateTotals(this.state.hours, this.state.brain, this.state.muscle, this.state.heart)
         this.setState(this.state)
     }
 
     onChangedHours(hoursEntered) {
         const parsedInt = parseInt(hoursEntered)
         if (!isNaN(parsedInt) && hoursEntered >= 0) {
-            const newState = {
-                hours: hoursEntered,
-                strikeEnabled: (parsedInt > 0) ? true : false,
-                strike: this.state.strike,
-                brain: (this.props.company.brain * hoursEntered),
-                muscle: (this.props.company.muscle * hoursEntered),
-                heart: (this.props.company.heart * hoursEntered)
-            }
+            const newState = { ...this.state }
+            newState.hours = hoursEntered
+            newState.strikeEnabled = (parsedInt > 0) ? true : false
+            newState.brain = (this.props.company.brain * hoursEntered)
+            newState.muscle = (this.props.company.muscle * hoursEntered)
+            newState.heart = (this.props.company.heart * hoursEntered)
+
             this.setState(newState, () => {
                 this.sendSelection()
             })
+            const brainDelta = newState.brain - this.state.brain
+            const muscleDelta = newState.muscle - this.state.muscle
+            const heartDelta = newState.heart - this.state.heart
+            const hoursDelta = newState.hours - this.state.hours
+            this.props.parent.updateTotals(hoursDelta, brainDelta, muscleDelta, heartDelta)
             return;
         }
         else if (hoursEntered === undefined || hoursEntered === null || hoursEntered.length === 0) {
-            const newState = {
-                hours: '',
-                strikeEnabled: false,
-                strike: this.state.strike,
-                brain: 0,
-                muscle: 0,
-                heart: 0
-            }
+            const newState = { ...this.state }
+            newState.hours = ''
+            newState.strikeEnabled = false
+            newState.brain = 0
+            newState.muscle = 0
+            newState.heart = 0
             this.setState(newState, () => {
                 this.sendSelection()
             })
+            const brainDelta = 0 - this.state.brain
+            const muscleDelta = 0 - this.state.muscle
+            const heartDelta = 0 - this.state.heart
+            const hoursDelta = 0 - this.state.hours
+            this.props.parent.updateTotals(hoursDelta, brainDelta, muscleDelta, heartDelta)
             return;
         }
 
@@ -101,7 +108,7 @@ export default class GameRow extends React.Component {
         
         const company = this.props.company
         const index = this.props.index
-        const gameForm = this.props.parent
+        const submitted = this.props.submitted
         const name = company.companies_name
         const isCompany = !["MEDITATION", "GYM", "TUTORIAL"].includes(name)
         return (
@@ -115,7 +122,7 @@ export default class GameRow extends React.Component {
                         </Box>
                         <Box className="col-md-3 col-6" display="flex" >
                             <Box className="my-auto mx-auto">
-                                <TextField disabled={gameForm.state.disableAll} value={this.state.hours}  id={"game-hours-" + index} name="hours" variant="outlined" size="small"
+                                <TextField disabled={submitted} value={this.state.hours}  id={"game-hours-" + index} name="hours" variant="outlined" size="small"
                                     InputProps={{ endAdornment: <InputAdornment position="end">Hrs</InputAdornment>, }}
                                     onChange={(e) => this.onChangedHours(e.target.value)} />
                             </Box >
@@ -173,7 +180,7 @@ export default class GameRow extends React.Component {
                                         control={<Checkbox checked={this.state.strike} color="primary" id={STRIKE_ID + index} onChange={(e) => this.onToggleStrike(e.target.checked)} />}
                                         label="Strike"
                                         labelPlacement="top"
-                                        disabled={gameForm.state.disableAll || !this.state.strikeEnabled}
+                                        disabled={submitted || !this.state.strikeEnabled}
                                     />
                                 </Box>
                                 : null

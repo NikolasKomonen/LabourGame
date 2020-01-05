@@ -10,18 +10,14 @@ const styles = theme => ({
 });
 
 export default class GameRow extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = {
-            totalHours: 0,
-            totalBrain: 0,
-            totalMuscle: 0,
-            totalHeart: 0,
-           
-        }    
-    }
-
+    
     render() {
+        
+        const totalBrain = this.props.brain
+        const totalMuscle = this.props.muscle
+        const totalHeart = this.props.heart
+        const totalHours = this.props.hours
+
         return (
             <Box className="col-12 " px={0} borderBottom={2} borderTop={2}>
                 <FormControl className="col-12">
@@ -33,7 +29,7 @@ export default class GameRow extends React.Component {
                         </Box>
                         <Box className="col-md-3 col-6" display="flex" >
                             <Box className="my-auto mx-auto">
-                                <TextField disabled value={this.state.totalHours}  id="game-hours-total" name="hours" variant="outlined" size="small"
+                                <TextField disabled value={totalHours}  id="game-hours-total" name="hours" variant="outlined" size="small"
                                     InputProps={{ endAdornment: <InputAdornment position="end">Hrs</InputAdornment>, className: styles.textField }}
                                 />
                             </Box >
@@ -47,7 +43,7 @@ export default class GameRow extends React.Component {
                                     margin="dense"
                                     style={{ width: 60 }}
                                     inputProps={{ style: { textAlign: 'right' } }}
-                                    value={this.state.totalBrain}
+                                    value={totalBrain}
                                 />
                             </Box>
                         </Box>
@@ -60,7 +56,7 @@ export default class GameRow extends React.Component {
                                     margin="dense"
                                     style={{ width: 60 }}
                                     inputProps={{ style: { textAlign: 'right' } }}
-                                    value={this.state.totalMuscle}
+                                    value={totalMuscle}
                                 />
                             </Box>
                         </Box>
@@ -73,7 +69,7 @@ export default class GameRow extends React.Component {
                                     margin="dense"
                                     style={{ width: 60 }}
                                     inputProps={{ style: { textAlign: 'right' } }}
-                                    value={this.state.totalHeart}
+                                    value={totalHeart}
                                 />
                             </Box>
                         </Box>

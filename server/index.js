@@ -4,7 +4,7 @@ const SQL = require('./database/sqliteIndex')
 const express = require('express')
 const app = express()
 const port = 3001
-const db = new SQL('database/dbFile.sqlite'); // May have to change relative to the index.js file else the workspace
+const db = new SQL('server/database/dbFile.sqlite'); // server/database/dbFile.sqlite OR database/dbFile.sqlite
 const session = require('express-session')
 const encryption = require('./encryption')
 const sessionAccounts = {}
@@ -23,8 +23,9 @@ app.use(express.static('build'))
 app.get('/api/getGameFormData', (req, res) => {
 	const data = {}
 	const id = req.sessionID
-	const username = sessionAccounts[id]
-	const week = admin.currentWeek
+	const username = sessionAccounts[id].username
+	const campaign_id = sessionAccounts[id].campaign_id
+	const week = admin.currentWeek[sessionAccounts[req.sessionID].campaign_id]
 	data.username = username
 	data.week = week
 	Promise.all([
@@ -34,7 +35,7 @@ app.get('/api/getGameFormData', (req, res) => {
 			SELECT 
 				sess.companies_name, brain, muscle, heart, COALESCE(accounts_username, ?) accounts_username, COALESCE(hours, 0) hours, COALESCE(strike, FALSE) strike 
 			FROM 
-				(SELECT * FROM company_sessions WHERE weeks_week=?) AS sess 
+				(SELECT * FROM company_sessions WHERE weeks_week=? AND campaigns_id=?) AS sess 
 			LEFT JOIN 
 				(SELECT * FROM user_selections WHERE accounts_username=?) AS selc 
 			ON 
@@ -44,7 +45,7 @@ app.get('/api/getGameFormData', (req, res) => {
 			ORDER BY
 				sess.companies_name ASC
 			`
-			, [username, admin.currentWeek, username]),
+			, [username, week, campaign_id, username]),
 		db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week])
 	]).then((queries) => {
 		// [ 
@@ -56,7 +57,7 @@ app.get('/api/getGameFormData', (req, res) => {
 			//    strike: 0 
 			//  } , ... 
 		// ]
-		 const company_sessions = queries[1]
+		const company_sessions = queries[1]
 		//re-order to have the Resources at the end in the order TUTORIAL, GYM, MEDITATION
 		let ordered_companies = []
 		let ordered_resources = []
@@ -168,8 +169,8 @@ app.get('/api/getGameFormData', (req, res) => {
 
 app.get('/api/submitGameForm', (req, res) => {
 	const id = req.sessionID
-	const username = sessionAccounts[id]
-	db.run(`UPDATE user_game_weeks SET submitted=1 WHERE accounts_username=? AND weeks_week=?`, [username, admin.currentWeek]).then(() => {
+	const username = sessionAccounts[id].username
+	db.run(`UPDATE user_game_weeks SET submitted=1 WHERE accounts_username=? AND weeks_week=?`, [username, admin.currentWeek[sessionAccounts[req.sessionID].campaign_id]]).then(() => {
 		res.status(200).end()
 	})
 }) 
@@ -177,8 +178,8 @@ app.get('/api/submitGameForm', (req, res) => {
 app.post('/api/sendSelection', (req, res) => {
 	const id = req.sessionID
 	const selection = req.body // { week, update : {companies_name, hours, strike}}
-	const username = sessionAccounts[id]
-	const week = admin.currentWeek
+	const username = sessionAccounts[id].username
+	const week = admin.currentWeek[sessionAccounts[req.sessionID].campaign_id]
 	const update = selection.update
 	const companyName = update.companies_name
 	let hours = update.hours
@@ -208,12 +209,12 @@ app.post('/api/sendSelection', (req, res) => {
 
 app.post('/api/updateAvailablePoints', (req, res) => {
 	const id = req.sessionID
-	const username = sessionAccounts[id]
+	const username = sessionAccounts[id].username
 	const data = req.body
 	const brain = data.available_brain
 	const muscle = data.available_muscle
 	const heart = data.available_heart
-	db.run('UPDATE user_game_weeks SET available_brain=?, available_muscle=?, available_heart=? WHERE accounts_username=? AND weeks_week=?', [brain, muscle, heart, username, admin.currentWeek])
+	db.run('UPDATE user_game_weeks SET available_brain=?, available_muscle=?, available_heart=? WHERE accounts_username=? AND weeks_week=?', [brain, muscle, heart, username, admin.currentWeek[sessionAccounts[req.sessionID].campaign_id]])
 	.then(() => {
 		res.status(200).end()
 	}).catch((err) => {
@@ -221,11 +222,22 @@ app.post('/api/updateAvailablePoints', (req, res) => {
 	})
 })
 
+app.get('/api/getAccountRegistrationData', (req, res) => {
+	const data = {}
+	db.all(`SELECT * FROM campaigns`).then((row) => {
+		console.log("Register campaign id's: ", row)
+		data.campaign_ids = row
+	}).then(() => {
+		res.status(200).send(data)
+	})
+})
+
 app.post('/api/registerAccount', (req, res) => {
 	const username = req.body.username;
 	const password = req.body.password;
-	if (username && password) {
-		db.get("SELECT * FROM accounts WHERE username=?", [username]).then(
+	const campaign_id = req.body.campaign_id
+	if (username && password && campaign_id) {
+		db.get("SELECT username FROM accounts WHERE username=?", [username]).then(
 			(result) => {
 				
 				if(result) {
@@ -236,7 +248,7 @@ app.post('/api/registerAccount', (req, res) => {
 					const newPassword = encryption.saltHashPassword(password)
 					const salt = newPassword.salt
 					const hashedPassword = newPassword.passwordHash
-					db.run("INSERT INTO accounts VALUES (?, ?, ?, ?)", [username, hashedPassword, salt, "FALSE"]).then(() => {
+					db.run("INSERT INTO accounts VALUES (?, ?, ?, ?, ?)", [username, hashedPassword, salt, "FALSE", campaign_id]).then(() => {
 						res.status(200)
 						res.end();
 					})
@@ -266,7 +278,10 @@ app.post('/api/login', function (req, res) {
 				const shad = encryption.sha512(password, salt)
 				if( shad.passwordHash === dbPassword) {
 					const sessionId = req.sessionID
-					sessionAccounts[sessionId] = username
+					sessionAccounts[sessionId] = {}
+					sessionAccounts[sessionId].username = username
+					sessionAccounts[sessionId].campaign_id = row.campaigns_id
+					sessionAccounts[sessionId].week = admin.currentWeek[row.campaigns_id]
 					res.status(200)
 					req.session.loggedIn = true;
 					req.session.username = username;

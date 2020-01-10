@@ -9,7 +9,8 @@ function createTables() {
                             username varchar(40) PRIMARY KEY,
                             password varchar(255),
                             salt varchar(16),
-                            admin binary)`
+                            admin binary
+                            )`
 
         const company_sessions = `CREATE TABLE IF NOT EXISTS company_sessions (
                 companies_name text,

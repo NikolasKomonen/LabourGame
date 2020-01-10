@@ -4,7 +4,7 @@ const SQL = require('./database/sqliteIndex')
 const express = require('express')
 const app = express()
 const port = 3001
-const db = new SQL('server/database/dbFile.sqlite'); // May have to change relative to the index.js file else the workspace
+const db = new SQL('database/dbFile.sqlite'); // May have to change relative to the index.js file else the workspace
 const session = require('express-session')
 const encryption = require('./encryption')
 const sessionAccounts = {}
@@ -41,6 +41,8 @@ app.get('/api/getGameFormData', (req, res) => {
 				sess.companies_name=selc.companies_name 
 				AND
 				sess.weeks_week=selc.weeks_week
+			ORDER BY
+				sess.companies_name ASC
 			`
 			, [username, admin.currentWeek, username]),
 		db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week])
@@ -54,18 +56,44 @@ app.get('/api/getGameFormData', (req, res) => {
 			//    strike: 0 
 			//  } , ... 
 		// ]
-		data.rows = queries[1]
-		const firstRow = queries[0]
+		 const company_sessions = queries[1]
+		//re-order to have the Resources at the end in the order TUTORIAL, GYM, MEDITATION
+		let ordered_companies = []
+		let ordered_resources = []
+		company_sessions.forEach(company => {
+			const name = company.companies_name
+			
+			if(name === "TUTORIAL") {
+				ordered_resources[0] = company
+			}
+			else if(name === "GYM") {
+				ordered_resources[1] = company
+			}
+			else if(name === "MEDITATION") {
+				ordered_resources[2] = company
+			}
+			else {
+				ordered_companies.push(company)
+			}
+			
+		});
+		const all_companies = ordered_companies.concat(ordered_resources)
+		data.rows = all_companies
 		const profitsRow = queries[2]
+		if(profitsRow) {
+			data.total_profit = profitsRow.total_profit
+			data.week_profit = profitsRow.week_profit
+		}
+		else {
+			data.total_profit = 0
+			data.week_profit = 0
+		}
+		const firstRow = queries[0]
 		if(firstRow) {
 			data.submitted = firstRow.submitted
 			data.available_brain = firstRow.available_brain
 			data.available_muscle = firstRow.available_muscle
 			data.available_heart = firstRow.available_heart
-			if(profitsRow) {
-				data.total_profit = profitsRow.total_profit
-				data.week_profit = profitsRow.week_profit
-			}
 			res.send(data)
 			console.log(data)
 		}
@@ -120,7 +148,6 @@ app.get('/api/getGameFormData', (req, res) => {
 
 					const gameWeek = queries[1]
 					if(gameWeek) {
-						
 						data.available_brain = gameWeek.available_brain+additional_brain
 						data.available_muscle = gameWeek.available_muscle+additional_muscle
 						data.available_heart = gameWeek.available_heart+additional_heart

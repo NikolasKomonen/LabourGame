@@ -221,7 +221,8 @@ class GameForm extends React.Component {
     submitSelection() {
         
         fetch('/api/submitGameForm').then((res) => {
-            if(res.status === 200) {
+            const enoughPointsAvailable = this.state.availableBrain >= 0 && this.state.availableHeart >= 0 && this.state.availableMuscle >= 0
+            if(res.status === 200 && enoughPointsAvailable) {
                 const newState = { ...this.state }
                 newState.submitted = true
                 newState.saveStatus = "Submitted"

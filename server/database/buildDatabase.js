@@ -94,6 +94,7 @@ function createTables() {
                     ])
                     .then(() => resolve())
                     .catch((reject) => {
+                        reject()
                         console.log("Error when building table: " + reject)
                     })
     })
@@ -238,11 +239,15 @@ function insertMockData() {
 
 
 }
-createTables()
+db.startDB()
 .then(() => {
-        return insertMockData()
-    })
+    return createTables()
+})
+.then(() => {
+    return insertMockData()
+})
 .then(() => db.close())
+
 
 
 

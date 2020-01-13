@@ -2,14 +2,13 @@ const sqlite3 = require('sqlite3').verbose();
 
 class SQL {
     constructor(dbFilePath) {
-        this.startDB(dbFilePath).then(() => {return});
+        this.dbFilePath = dbFilePath
     }
     
-    startDB(dbFilePath) {
-        console.log("In create db")
+    startDB() {
         return new Promise((resolve, reject) => {
-            this.db = new sqlite3.Database(dbFilePath, (err) => {
-                console.log("Trying to connect to db: " + dbFilePath)
+            this.db = new sqlite3.Database(this.dbFilePath, (err) => {
+                console.log("Trying to connect to db: " + this.dbFilePath)
                 if (err) {
                     console.log('Could not connect to database', err)
                     reject()

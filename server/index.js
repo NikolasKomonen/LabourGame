@@ -4,7 +4,8 @@ const SQL = require('./database/sqliteIndex')
 const express = require('express')
 const app = express()
 const port = 3001
-const db = new SQL('server/database/dbFile.sqlite'); // server/database/dbFile.sqlite OR database/dbFile.sqlite
+let db = new SQL('server/database/dbFile.sqlite'); // server/database/dbFile.sqlite OR database/dbFile.sqlite
+db.startDB()
 const session = require('express-session')
 const encryption = require('./encryption')
 const sessionAccounts = {}
@@ -170,7 +171,8 @@ app.get('/api/getGameFormData', (req, res) => {
 app.get('/api/submitGameForm', (req, res) => {
 	const id = req.sessionID
 	const username = sessionAccounts[id].username
-	db.run(`UPDATE user_game_weeks SET submitted=1 WHERE accounts_username=? AND weeks_week=?`, [username, admin.currentWeek[sessionAccounts[req.sessionID].campaign_id]]).then(() => {
+	const week = admin.currentWeek[sessionAccounts[req.sessionID].campaign_id]
+	db.run(`UPDATE user_game_weeks SET submitted=1 WHERE accounts_username=? AND weeks_week=?`, [username, week]).then(() => {
 		res.status(200).end()
 	})
 }) 
@@ -248,7 +250,7 @@ app.post('/api/registerAccount', (req, res) => {
 					const newPassword = encryption.saltHashPassword(password)
 					const salt = newPassword.salt
 					const hashedPassword = newPassword.passwordHash
-					db.run("INSERT INTO accounts VALUES (?, ?, ?, ?, ?)", [username, hashedPassword, salt, "FALSE", campaign_id]).then(() => {
+					db.run("INSERT INTO accounts VALUES (?, ?, ?, ?, ?)", [username, hashedPassword, salt, false, campaign_id]).then(() => {
 						res.status(200)
 						res.end();
 					})

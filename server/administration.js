@@ -1,6 +1,6 @@
 const currentWeek = { // Refer to 'id' order in 'companies' table
-    1: 2,
-    2: 2,
+    1: 1,
+    2: 1,
 };
 
 module.exports = {

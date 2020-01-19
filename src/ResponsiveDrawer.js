@@ -117,7 +117,7 @@ export const ResponsiveDrawer = withRouter((props) => {
               <MenuIcon />
             </IconButton>
             <Typography variant="h6" noWrap style={{ flex: 1 }}>
-              Labour Game
+              Gig Economy Game
           </Typography>
             <div>
               <Button variant="contained" onClick={() => { logout(props) }}>Logout</Button>

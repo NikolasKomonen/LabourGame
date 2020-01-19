@@ -34,19 +34,28 @@ app.get('/api/getGameFormData', (req, res) => {
 		db.all(
 			`
 			SELECT 
-				sess.companies_name, brain, muscle, heart, COALESCE(accounts_username, ?) accounts_username, COALESCE(hours, 0) hours, COALESCE(strike, FALSE) strike 
+				comp.name AS companies_name, brain, muscle, heart, COALESCE(hours, 0) hours, COALESCE(strike, 0) strike 
 			FROM 
-				(SELECT * FROM company_sessions WHERE weeks_week=? AND campaigns_id=?) AS sess 
+				(
+					SELECT 
+						* 
+					FROM 
+						companies AS c
+					WHERE
+						NOT EXISTS (SELECT companies_id 
+									FROM weekly_excluded_companies 
+									WHERE c.id=weekly_excluded_companies.companies_id AND weeks_week=?
+									)	
+				)
+				AS comp 
 			LEFT JOIN 
-				(SELECT * FROM user_selections WHERE accounts_username=?) AS selc 
+				(SELECT * FROM user_game_selections WHERE accounts_username=?) AS selec 
 			ON 
-				sess.companies_name=selc.companies_name 
-				AND
-				sess.weeks_week=selc.weeks_week
+				comp.id=selec.companies_id
 			ORDER BY
-				sess.companies_name ASC
+				comp.id ASC
 			`
-			, [username, week, campaign_id, username]),
+			, [week, username]),
 		db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week])
 	]).then((queries) => {
 		// [ 
@@ -91,11 +100,14 @@ app.get('/api/getGameFormData', (req, res) => {
 			data.week_profit = 0
 		}
 		const firstRow = queries[0]
+		const startingPoints = 30
+		data.distributablePoints = startingPoints
 		if(firstRow) {
-			data.submitted = firstRow.submitted
+			data.submitted = firstRow.submitted > 0
 			data.available_brain = firstRow.available_brain
 			data.available_muscle = firstRow.available_muscle
 			data.available_heart = firstRow.available_heart
+			
 			res.send(data)
 			console.log(data)
 		}
@@ -103,12 +115,14 @@ app.get('/api/getGameFormData', (req, res) => {
 			data.submitted = false
 			const lastWeek = week - 1
 			if(lastWeek === 0) { // We are on week 1
-				db.run("INSERT INTO user_game_weeks (accounts_username, weeks_week, submitted) VALUES (?, ?, ?)", [username, week, false])
+				
+				db.run("INSERT INTO user_game_weeks VALUES (?, ?, ?, ?, ?, ?)", [username, week, false, startingPoints, startingPoints, startingPoints])
 				data.total_profit = 0
 				data.week_profit = 0
-				data.available_brain = 20
-				data.available_muscle = 20
-				data.available_heart = 20
+				data.available_brain = startingPoints
+				data.available_muscle = startingPoints
+				data.available_heart = startingPoints
+				
 				res.send(data)
 				console.log(data)
 			}
@@ -118,7 +132,11 @@ app.get('/api/getGameFormData', (req, res) => {
 						db.all(`SELECT 
 									companies_name, hours 
 								FROM 
-									user_selections 
+									companies
+								JOIN
+									user_game_selections
+								ON
+									companies_id=user_game_selections.companies_id
 								WHERE 
 									accounts_username=? 
 									AND
@@ -134,9 +152,9 @@ app.get('/api/getGameFormData', (req, res) => {
 					]
 				)
 				.then((queries) => {
-					const nonJobHours = queries[0]
+					const resourceHours = queries[0]
 					let [additional_brain, additional_muscle, additional_heart] = [0, 0, 0]
-					nonJobHours.forEach(row => {
+					resourceHours.forEach(row => {
 						if(row.companies_name === "MEDITATION") {
 							additional_heart = row.hours
 						}
@@ -191,17 +209,20 @@ app.post('/api/sendSelection', (req, res) => {
 	const strike = hours === 0 ? false : update.strike
 	if(username && week && companyName && (hours >= 0) && strike !== undefined) {
 		if(hours === 0) {
-			db.run("DELETE FROM user_selections WHERE accounts_username=? AND companies_name=? AND weeks_week=?", 
+			db.run("DELETE FROM user_game_selections WHERE accounts_username=? AND companies_id=(SELECT id FROM companies WHERE name=?) AND weeks_week=?", 
 			[username, companyName, week]).then(() => {
 				res.status(200).send()
 			})
 		}
-		db.run("REPLACE INTO user_selections (accounts_username, companies_name, weeks_week, hours, strike) VALUES (?, ?, ?, ?, ?)", 
+		else {
+			db.run("REPLACE INTO user_game_selections (accounts_username, companies_id, weeks_week, hours, strike) VALUES (?, (SELECT id FROM companies WHERE name=?), ?, ?, ?)", 
 				[username, companyName, week, hours, strike]).then((success) => {
 					console.log("Success: ", success)
 					res.status(200)
 					res.end()
 				}).catch((err) => {console.log("Bad data from /api/sendSelection."); res.status(500).end()})
+		}
+		
 	}
 	else {
 		console.log("Not all information available in /api/sendSelection")

@@ -46,14 +46,13 @@ class GameForm extends React.Component {
             submitted: false,
             companies: [],
             saveStatus: "Last Saved " + new Date().toLocaleTimeString(),
-            disableAll: false,
             week: 0,
             totalProfit: 0,
             weekProfit: 0,
-            distributablePoints: 20,
-            availableBrain: 20,
-            availableMuscle: 20,
-            availableHeart: 20,
+            distributablePoints: 0,
+            availableBrain: 0,
+            availableMuscle: 0,
+            availableHeart: 0,
             totalBrain: 0,
             totalHeart: 0,
             totalMuscle: 0,
@@ -93,10 +92,12 @@ class GameForm extends React.Component {
                 tempState.availableBrain = data.available_brain
                 tempState.availableMuscle = data.available_muscle
                 tempState.availableHeart = data.available_heart
+                tempState.distributablePoints = data.distributablePoints
                 tempState.totalProfit = data.total_profit
                 tempState.weekProfit = data.week_profit
                 if(tempState.week === 1) {
-                    tempState.distributablePoints = 80 - tempState.availableBrain - tempState.availableMuscle - tempState.availableHeart
+                    tempState.totalDistributablePoints = data.distributablePoints
+                    tempState.distributablePoints = (tempState.distributablePoints*4) - tempState.availableBrain - tempState.availableMuscle - tempState.availableHeart
                 }
                 this.setState(tempState)
             }, (error) => {
@@ -143,15 +144,15 @@ class GameForm extends React.Component {
     canReturnAvailablePoint(part) {
         let overMinimum;
         if(part === "brain") {
-            overMinimum = this.state.availableBrain > 20
+            overMinimum = this.state.availableBrain > this.state.totalDistributablePoints
         }
         else if(part === "muscle") {
-            overMinimum = this.state.availableMuscle > 20
+            overMinimum = this.state.availableMuscle > this.state.totalDistributablePoints
         }
         else {
-            overMinimum = this.state.availableHeart > 20
+            overMinimum = this.state.availableHeart > this.state.totalDistributablePoints
         }
-        return overMinimum && this.state.distributablePoints < 20
+        return overMinimum && this.state.distributablePoints < this.state.totalDistributablePoints
     }
 
     incrementAvailable(part) {
@@ -293,9 +294,9 @@ class GameForm extends React.Component {
                             Available Points {this.state.week === 1 ? '(Distributable Points: '+this.state.distributablePoints+')' : null}
                         </Box>
                         <Box className="col-md-6 p-0" display="flex">
-                            <AvailablePoints parent={this} week={this.state.week} part="brain" available={this.state.availableBrain-this.state.totalBrain}/>
-                            <AvailablePoints parent={this} week={this.state.week} part="muscle" available={this.state.availableMuscle-this.state.totalMuscle}/>
-                            <AvailablePoints parent={this} week={this.state.week} part="heart" available={this.state.availableHeart-this.state.totalHeart}/>
+                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="brain" available={this.state.availableBrain-this.state.totalBrain}/>
+                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="muscle" available={this.state.availableMuscle-this.state.totalMuscle}/>
+                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="heart" available={this.state.availableHeart-this.state.totalHeart}/>
                         </Box>
                     </Box>
 

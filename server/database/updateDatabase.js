@@ -24,7 +24,7 @@ const gatherWeeklyData = (campaign_id, week) => {
                 FROM 
                     (SELECT * FROM company_sessions WHERE weeks_week=? AND campaigns_id=?) AS sess 
                 LEFT JOIN 
-                    (SELECT * FROM user_selections WHERE accounts_username=?) AS selc 
+                    (SELECT * FROM user_game_selections WHERE accounts_username=?) AS selc 
                 ON 
                     sess.companies_name=selc.companies_name 
                     AND

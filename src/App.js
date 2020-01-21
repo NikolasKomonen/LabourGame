@@ -25,6 +25,7 @@ class App extends Component {
                     <Route path="/login" component={LoginPage} />
                     <Route path="/register" component={RegisterPage} />
                     <Route path="/game" component={GamePage}/>
+                    <Route path="*" component={RootRedirect} />
                 </Switch>
             </div>
             

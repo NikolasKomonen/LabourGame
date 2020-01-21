@@ -49,7 +49,7 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 export const ResponsiveDrawer = withRouter((props) => {
-  const dummyCategories = ['A', 'B', 'C']
+  const dummyCategories = ['Pages', 'Under', 'Construction']
   const classes = useStyles();
   const theme = useTheme();
   const [mobileOpen, setMobileOpen] = React.useState(false);

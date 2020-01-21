@@ -25,7 +25,6 @@ app.get('/api/getGameFormData', (req, res) => {
 	const data = {}
 	const id = req.sessionID
 	const username = sessionAccounts[id].username
-	const campaign_id = sessionAccounts[id].campaign_id
 	const week = admin.currentWeek[sessionAccounts[req.sessionID].campaign_id]
 	data.username = username
 	data.week = week
@@ -109,7 +108,6 @@ app.get('/api/getGameFormData', (req, res) => {
 			data.available_heart = firstRow.available_heart
 			
 			res.send(data)
-			console.log(data)
 		}
 		else { // student row for this weeks game doesnt exist yet
 			data.submitted = false
@@ -124,7 +122,6 @@ app.get('/api/getGameFormData', (req, res) => {
 				data.available_heart = startingPoints
 				
 				res.send(data)
-				console.log(data)
 			}
 			else {
 				Promise.all(
@@ -179,7 +176,6 @@ app.get('/api/getGameFormData', (req, res) => {
 					
 					db.run("INSERT INTO user_game_weeks VALUES (?, ?, ?, ?, ?, ?)", [username, week, false, data.available_brain, data.available_muscle, data.available_heart])
 					res.send(data)
-					console.log(data)
 				})
 			}
 		}
@@ -217,7 +213,6 @@ app.post('/api/sendSelection', (req, res) => {
 		else {
 			db.run("REPLACE INTO user_game_selections (accounts_username, companies_id, weeks_week, hours, strike) VALUES (?, (SELECT id FROM companies WHERE name=?), ?, ?, ?)", 
 				[username, companyName, week, hours, strike]).then((success) => {
-					console.log("Success: ", success)
 					res.status(200)
 					res.end()
 				}).catch((err) => {console.log("Bad data from /api/sendSelection."); res.status(500).end()})
@@ -248,7 +243,6 @@ app.post('/api/updateAvailablePoints', (req, res) => {
 app.get('/api/getAccountRegistrationData', (req, res) => {
 	const data = {}
 	db.all(`SELECT * FROM campaigns`).then((row) => {
-		console.log("Register campaign id's: ", row)
 		data.campaign_ids = row
 	}).then(() => {
 		res.status(200).send(data)
@@ -284,10 +278,8 @@ app.post('/api/registerAccount', (req, res) => {
 })
 
 app.post('/api/login', function (req, res) {
-	console.log("Received and auth request")
 	const username = req.body.username;
 	const password = req.body.password;
-	console.log("Username: ", username, " Password: ", password)
 	if (username && password) {
 		db.get("SELECT * FROM accounts WHERE username=?", [username]).then(
 			(row) => {

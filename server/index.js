@@ -4,7 +4,7 @@ const path = require('path')
 const express = require('express')
 const app = express()
 const port = 3001
-let db = new SQL('server/database/dbFile.sqlite'); // server/database/dbFile.sqlite OR database/dbFile.sqlite
+let db = new SQL(path.join(__dirname, 'database/dbFile.sqlite'));
 db.startDB()
 const session = require('express-session')
 const encryption = require('./encryption')
@@ -19,7 +19,7 @@ app.use(session({
 
 app.use(express.json())
 
-app.use(express.static('build'))
+app.use(express.static(path.join(__dirname,'../build')))
 
 app.get('/api/getGameFormData', (req, res) => {
 	const data = {}

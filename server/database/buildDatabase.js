@@ -1,5 +1,6 @@
 const SQL = require('./sqliteIndex')
-const db = new SQL('server/database/dbFile.sqlite')
+const path = require('path')
+const db = new SQL(path.join(__dirname, 'dbFile.sqlite'));
 
 function createTables() {
     return new Promise((resolve, reject) => {

@@ -105,12 +105,12 @@ class GameForm extends React.Component {
             })
     }
 
-    sendSelection(newRow) {
+    updateSelection(newRow) {
         const data = {
             update: newRow, // {companies_name: ... , hours: ... , strike: ...}
             week: this.state.week,
         }
-        fetch('/api/sendSelection', {
+        fetch('/api/updateSelection', {
             method: 'POST',
             body: JSON.stringify(data),
             headers: {
@@ -339,7 +339,7 @@ class GameForm extends React.Component {
                 </Box>
                 {this.state.companies.map((c, i) => {
                     return (
-                        <GameRow key={i} company={c} index={i} parent={this} submitted={this.state.submitted}/>
+                        <GameRow key={c.companies_name} company={c} index={i} parent={this} submitted={this.state.submitted}/>
                     );
                 })}
                 <GameTotals hours={this.state.totalHours} brain={this.state.totalBrain} muscle={this.state.totalMuscle} heart={this.state.totalHeart}/>

@@ -27,9 +27,12 @@ export default class GameRow extends React.Component {
         this.setState(this.state)
     }
 
-    onChangedHours(hoursEntered) {
+    onChangedHours(hoursEntered, isResource) {
         const parsedInt = parseInt(hoursEntered)
         if (!isNaN(parsedInt) && hoursEntered >= 0) {
+            if(isResource && parsedInt > 5) {
+                return;
+            }
             const newState = { ...this.state }
             newState.hours = hoursEntered
             newState.strikeEnabled = (parsedInt > 0) ? true : false
@@ -37,14 +40,16 @@ export default class GameRow extends React.Component {
             newState.muscle = (this.props.company.muscle * hoursEntered)
             newState.heart = (this.props.company.heart * hoursEntered)
 
-            this.setState(newState, () => {
-                this.sendSelection()
-            })
             const brainDelta = newState.brain - this.state.brain
             const muscleDelta = newState.muscle - this.state.muscle
             const heartDelta = newState.heart - this.state.heart
             const hoursDelta = newState.hours - this.state.hours
             this.props.parent.updateTotals(hoursDelta, brainDelta, muscleDelta, heartDelta)
+
+            this.setState(newState, () => {
+                this.updateSelection()
+            })
+            
             return;
         }
         else if (hoursEntered === undefined || hoursEntered === null || hoursEntered.length === 0) {
@@ -54,20 +59,23 @@ export default class GameRow extends React.Component {
             newState.brain = 0
             newState.muscle = 0
             newState.heart = 0
-            this.setState(newState, () => {
-                this.sendSelection()
-            })
+
             const brainDelta = 0 - this.state.brain
             const muscleDelta = 0 - this.state.muscle
             const heartDelta = 0 - this.state.heart
             const hoursDelta = 0 - this.state.hours
             this.props.parent.updateTotals(hoursDelta, brainDelta, muscleDelta, heartDelta)
+
+            this.setState(newState, () => {
+                this.updateSelection()
+            })
+            
             return;
         }
 
     }
 
-    sendSelection() {
+    updateSelection() {
         this.props.parent.setNotSaved();
         if(this.timer) {
             clearTimeout(this.timer)
@@ -76,14 +84,14 @@ export default class GameRow extends React.Component {
             this.props.parent.selectionStack++;
         }
         const updatedSelection = this.getUpdatedSelection()
-        this.timer = setTimeout(() => {this.timer=undefined; this.props.parent.sendSelection(updatedSelection)} , 2000)
+        this.timer = setTimeout(() => {this.timer=undefined; this.props.parent.updateSelection(updatedSelection)} , 2000)
     }
 
     onToggleStrike(checked) {
         const newState = { ...this.state }
         newState.strike = checked
         this.setState(newState, () => {
-            this.sendSelection()
+            this.updateSelection()
         })
 
     }
@@ -124,7 +132,7 @@ export default class GameRow extends React.Component {
                             <Box className="my-auto mx-auto">
                                 <TextField disabled={submitted} value={this.state.hours}  id={"game-hours-" + index} name="hours" variant="outlined" size="small"
                                     InputProps={{ endAdornment: <InputAdornment position="end">Hrs</InputAdornment>, }}
-                                    onChange={(e) => this.onChangedHours(e.target.value)} />
+                                    onChange={(e) => this.onChangedHours(e.target.value, !isCompany)} />
                             </Box >
                         </Box>
                         <Box className="col-md-2 col-2" display="flex" >

@@ -191,7 +191,7 @@ app.get('/api/submitGameForm', (req, res) => {
 	})
 }) 
 
-app.post('/api/sendSelection', (req, res) => {
+app.post('/api/updateSelection', (req, res) => {
 	const id = req.sessionID
 	const selection = req.body // { week, update : {companies_name, hours, strike}}
 	const username = sessionAccounts[id].username
@@ -215,12 +215,12 @@ app.post('/api/sendSelection', (req, res) => {
 				[username, companyName, week, hours, strike]).then((success) => {
 					res.status(200)
 					res.end()
-				}).catch((err) => {console.log("Bad data from /api/sendSelection."); res.status(500).end()})
+				}).catch((err) => {console.log("Bad data from /api/updateSelection."); res.status(500).end()})
 		}
 		
 	}
 	else {
-		console.log("Not all information available in /api/sendSelection")
+		console.log("Not all information available in /api/updateSelection")
 		res.status(500).end()
 	}
 })

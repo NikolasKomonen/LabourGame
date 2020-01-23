@@ -28,7 +28,10 @@ function createTables() {
                     name text UNIQUE,
                     brain integer,
                     muscle integer,
-                    heart integer
+                    heart integer,
+                    starting_salary integer,
+                    regular_hours integer,
+                    supervisor_hours
                 )`
 
         const weekly_excluded_companies = 
@@ -53,7 +56,7 @@ function createTables() {
                     hours integer DEFAULT 0,
                     strike boolean DEFAULT FALSE,
                     PRIMARY KEY (accounts_username, companies_id, weeks_week),
-                    FOREIGN KEY(accounts_username) REFERENCES accounts(username),
+                    FOREIGN KEY(accounts_username) REFERENCES accounts(username) ON DELETE CASCADE,
                     FOREIGN KEY(companies_id) REFERENCES companies(id),
                     FOREIGN KEY(weeks_week) REFERENCES weeks(week)
                 )`
@@ -67,7 +70,7 @@ function createTables() {
                     available_muscle integer,
                     available_heart integer,
                     PRIMARY KEY (accounts_username, weeks_week),
-                    FOREIGN KEY(accounts_username) REFERENCES accounts(username),
+                    FOREIGN KEY(accounts_username) REFERENCES accounts(username) ON DELETE CASCADE,
                     FOREIGN KEY(weeks_week) REFERENCES weeks(week)
                 )`
 
@@ -79,7 +82,19 @@ function createTables() {
                     total_profit integer DEFAULT 0,
                     PRIMARY KEY (accounts_username, weeks_week),
                     FOREIGN KEY(accounts_username) REFERENCES accounts(username),
-                    FOREIGN KEY(weeks_week) REFERENCES weeks(week)
+                    FOREIGN KEY (weeks_week) REFERENCES weeks(week)
+                )`
+
+        const company_wage_history = 
+                `CREATE TABLE IF NOT EXISTS company_wage_history (
+                    companies_id integer,
+                    campaigns_id integer,
+                    weeks_week integer,
+                    wage integer,
+                    PRIMARY KEY (companies_id, campaigns_id, weeks_week),
+                    FOREIGN KEY (campaigns_id) REFERENCES campaigns(id),
+                    FOREIGN KEY (companies_id) REFERENCES companies(id),
+                    FOREIGN KEY (weeks_week) REFERENCES weeks(week)
                 )`
 
         const event_cards = 
@@ -87,7 +102,9 @@ function createTables() {
                     id integer PRIMARY KEY,
                     description text,
                     event_types_id integer,
-                    event_type_data BLOB
+                    event_data BLOB,
+                    companies_id integer,
+                    FOREIGN KEY (companies_id) REFERENCES companies(id)
                 )`
 
         const event_types = 
@@ -98,9 +115,20 @@ function createTables() {
 
         const fixed_event_cards = 
                 `CREATE TABLE IF NOT EXISTS fixed_event_cards (
-                    event_cards_id integer,
+                    id integer PRIMARY KEY,
+                    description text,
+                    event_types_id integer,
+                    event_data BLOB,
                     weeks_week integer,
-                    PRIMARY KEY (event_cards_id, weeks_week),
+                    companies_id integer,
+                    FOREIGN KEY (companies_id) REFERENCES companies(id),
+                    FOREIGN KEY (weeks_week) REFERENCES weeks(week)
+                )`
+
+        const event_card_history = 
+                `CREATE TABLE IF NOT EXISTS event_card_history (
+                    weeks_week integer PRIMARY_KEY,
+                    event_cards_id integer,
                     FOREIGN KEY (event_cards_id) REFERENCES event_cards(id)
                 )`
 
@@ -125,7 +153,13 @@ function createTables() {
                         db.run(user_game_selections), 
                         db.run(user_game_weeks),
                         db.run(user_profit_weeks),
-                        db.run(weekly_excluded_companies)
+                        db.run(weekly_excluded_companies),
+                        db.run(event_cards),
+                        db.run(event_types),
+                        db.run(fixed_event_cards),
+                        db.run(career_history),
+                        db.run(event_card_history),
+                        db.run(company_wage_history)
                     ])
                     .then(() => resolve())
                     .catch((reject) => {
@@ -137,33 +171,49 @@ function createTables() {
 
 }
 
-function insertCompanies(companyName, brain, muscle, heart) {
-    return db.run(`INSERT INTO companies (name, brain, muscle, heart) VALUES (?, ?, ?, ?)`, [companyName, brain, muscle, heart])
+function insertCompanies(companyName, brain, muscle, heart, starting_salary, regular_hours, supervisor_hours) {
+    return db.run(`INSERT INTO companies (name, brain, muscle, heart, starting_salary, regular_hours, supervisor_hours) VALUES (?, ?, ?, ?, ?, ?, ?)`, [companyName, brain, muscle, heart, starting_salary, regular_hours, supervisor_hours])
 }
 
 function insertWeeks(companyName) {
     return db.run(`INSERT INTO weeks VALUES (?)`, [companyName])
 }
 
-function insertAccounts(username, password, salt, isAdmin, campaigns_id) {
-    return db.run('INSERT INTO accounts VALUES (?, ?, ?, ?, ?)', [username, password, salt, isAdmin, campaigns_id])
+// function insertAccounts(username, password, salt, isAdmin, campaigns_id) {
+//     return db.run('INSERT INTO accounts VALUES (?, ?, ?, ?, ?)', [username, password, salt, isAdmin, campaigns_id])
+// }
+
+// function insertStudentGameWeeks(username, week, isSubmitted, available_brain, available_muscle, available_heart, total_profit, last_week_profit) {
+//     return db.run(`INSERT INTO user_game_weeks VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [username, week, isSubmitted, available_brain, available_muscle, available_heart, total_profit, last_week_profit])
+// }
+
+// function insertUserSelections(username, company_name, weeks_week, hours, strike) {
+//     return db.run('INSERT INTO user_game_selections VALUES (?, ?, ?, ?, ?)', [username, company_name, weeks_week, hours, strike])
+// }
+
+// function insertCompanySessions(company_name, weeks_week, campaign_id, brain, muscle, heart) {
+//     return db.run('INSERT INTO company_sessions VALUES(?, ?, ?, ?, ?, ?)', [company_name, weeks_week, campaign_id, brain, muscle, heart])
+// }
+
+// function insertUserProfitWeeks(username, week, weekProfit, totalProfit) {
+//     return db.run('INSERT INTO user_profit_weeks VALUES(?, ?, ?, ?)', [username, week, weekProfit, totalProfit]) 
+// }
+
+function insertEventCards(description, event_types_id, event_data, companies_id) {
+    return db.run('INSERT INTO event_cards (description, event_types_id, event_data, companies_id) VALUES(?, ?, ?, ?)', [description, event_types_id, event_data, companies_id])
 }
 
-function insertStudentGameWeeks(username, week, isSubmitted, available_brain, available_muscle, available_heart, total_profit, last_week_profit) {
-    return db.run(`INSERT INTO user_game_weeks VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [username, week, isSubmitted, available_brain, available_muscle, available_heart, total_profit, last_week_profit])
+function insertEventTypes(description) {
+    return db.run('INSERT INTO event_types (description) VALUES(?)', [description])
 }
 
-function insertUserSelections(username, company_name, weeks_week, hours, strike) {
-    return db.run('INSERT INTO user_game_selections VALUES (?, ?, ?, ?, ?)', [username, company_name, weeks_week, hours, strike])
+function insertFixedEventCards(description, event_types_id, event_data, weeks_week, companies_id) {
+    return db.run('INSERT INTO fixed_event_cards (description, event_types_id, event_data, weeks_week, companies_id) VALUES (?, ?, ?, ?, ?)', [description, event_types_id, event_data, weeks_week, companies_id])
 }
 
-function insertCompanySessions(company_name, weeks_week, campaign_id, brain, muscle, heart) {
-    return db.run('INSERT INTO company_sessions VALUES(?, ?, ?, ?, ?, ?)', [company_name, weeks_week, campaign_id, brain, muscle, heart])
-}
-
-function insertUserProfitWeeks(username, week, weekProfit, totalProfit) {
-    return db.run('INSERT INTO user_profit_weeks VALUES(?, ?, ?, ?)', [username, week, weekProfit, totalProfit]) 
-}
+// function insertCareerHistory(accounts_username, companies_id, weeks_week, is_supervisor) {
+//     return db.run('INSERT INTO career_history VALUES(?, ?, ?, ?)', [accounts_username, companies_id, weeks_week, is_supervisor])
+// }
 
 function insertCampaigns(campaign_name) {
     return db.run(`INSERT INTO campaigns (name) VALUES (?)`, [campaign_name])
@@ -172,7 +222,6 @@ function insertCampaigns(campaign_name) {
 function insertMockData() {
     
     return new Promise((resolve, reject) => {
-        
         Promise.all([
             insertCampaigns('UTM'),
             insertCampaigns('SFU'),
@@ -183,19 +232,59 @@ function insertMockData() {
             insertWeeks(4),
             insertWeeks(5),
             //Companies
-            insertCompanies('Poopora', 1, 3, 2),
-            insertCompanies('Cam with Benefits', 1, 2, 5),
-            insertCompanies('Cheesewagon', 2, 0, 2),
-            insertCompanies('Dim\'s Convenience', 1, 4, 1),
-            insertCompanies('Flag that D', 1, 0, 1),
-            insertCompanies('High Sugar', 0, 3, 1),
-            insertCompanies('Robo A+', 3, 0, 1),
-            insertCompanies('Skip the Pusher', 1, 3, 0),
-            insertCompanies('SofaCrash', 1, 1, 2),
-            insertCompanies('Code Monkey', 2, 0, 6),
-            insertCompanies('MEDITATION', 0, 0, 2),
-            insertCompanies('GYM', 0, 2, 0),
-            insertCompanies('TUTORIAL', 2, 0, 0),
+            insertCompanies('Poopora', 1, 3, 2, 15, 45, 90), // 1
+            insertCompanies('Cam with Benefits', 1, 2, 5, 20, 30, 60), // 2
+            insertCompanies('Cheesewagon', 2, 0, 2, 10, 50, 120), // 3
+            insertCompanies('Dim\'s Convenience', 1, 4, 1, 15, 30, 80),
+            insertCompanies('Flag that D', 1, 0, 1, 5, 80, 250),
+            insertCompanies('High Sugar', 0, 3, 1, 10, 40, 100), //6
+            insertCompanies('Robo A+', 3, 0, 1, 10, 50, 100),
+            insertCompanies('Skip the Pusher', 1, 3, 0, 10, 40, 100),
+            insertCompanies('SofaCrash', 1, 1, 2, 10, 75, 150), // 9
+            insertCompanies('Code Monkey', 2, 0, 6, 20, 30, 50),
+            insertCompanies('Friend.ly', 1, 0, 3, 10, 50, 100), // 11
+            insertCompanies('Trashpanda', 1, 3, 0, 10, 40, 100),
+            insertCompanies('MEDITATION', 0, 0, 2, null, null, null),
+            insertCompanies('GYM', 0, 2, 0, null, null, null),
+            insertCompanies('TUTORIAL', 2, 0, 0, null, null, null),
+            // Event Types
+            insertEventTypes("Percentage Multiplier"), // 1
+            insertEventTypes("Out of Business"), // 2
+            //Event Cards
+            insertEventCards("An epidemic of viral gastroenteritis has hit dogs across town. Poopora has got nothing to do with this, but dog owners are blaming Poopers for their beloved pup’s vomit. All Poopers get downrated and lose their weekly pay.", 1, 0, 1),
+            insertEventCards("Hackers have breached into CWB’s database and outed all Cammers (and customers) by publishing their names and addresses. If you are working for CWB this week your income drops 20% as some customers move to a 'more secure' camming sites.", 1, 1.2, 2),
+            insertEventCards("Canadian universities implement new anti-plagiarism software that can detect Robo A+ essays. The company’s customers are lined up in front of the Dean’s office and won’t pay their bills this week.", 1, 0, 7),
+            insertEventCards("Construction work! The new mayor is dismantling all bike lanes, Skip the Pusher workers have to slow down and deliver 20% fewer orders per hour.", 1, 0.8, 8),
+            insertEventCards("Too many dxxxs! An abrupt spike in unsolicited dxxx picks on WhutsUpp is just too much for Ds to take. If you were working for Flag That D this week, you need to take a break and lose your wage (but keep working for other companies).", 1, 0, 5),
+            insertEventCards("Code Monkey signs a big contract with Boogle to write new software which will be used to make decisions on behalf of Toronto and Vancouver’s city councils. Monkeys receive a +20% bump.",1 ,1.2, 10),
+            insertEventCards("The City introduces new regulation to curb illegal hotels and rentals. SofaCrashers need to be careful and reduce their customers. This decreases their income by 20%.", 1, 0.8, 9),
+            insertEventCards("It’s a tough job market. Precarity and unpredictable wages increase the need for emotional support, which bumps Friend.ly customers by 20%.", 1, 1.2, 11),
+            insertEventCards("Following a hype that made everyone enroll in Computer Science four years ago, the market is flooded by new programmers. Code Monkey reduces its pay by 20%.", 1, 0.8, 10),
+            insertEventCards("The new federal government changed the definition of inappropriate content. Now social media platforms need to filter out pretty much any exposed body part. Flag that D increases its wages by 20% to attract more workers.", 1, 1.2, 5),
+            insertEventCards("Teachers’ strike! All class trips are cancelled, and WCs (Cheesewagon) lose their side gigs (-20%).", 1, 0.8, 3),
+            insertEventCards("Thanks to a miraculous series of events, student debt is cancelled. University students across the province are happy and Friend.ly loses a sizeable chunk of its customers. Friends make 20% less than usual. ", 1, 0.8, 11),
+            insertEventCards("A whistleblower leaks thousands of conversations from Friend.ly. The company promised they were not recording chats, but it looks like customer data was just too valuable. Friend.ly goes offline forever in order to focus on the ensuing lawsuit.", 2, null, 11),
+            insertEventCards("The province has changed its policy for pot commerce. From now on, only a newly formed company owned by the Premier’s family can operate home delivery apps. Skip the Pusher disconnects all its workers and moves to P.E.I. ", 2, null, 8),
+            insertEventCards("SofaCrash investors realize it has been a scam since day one: all profits were diverted to a tax haven in Barbados. They pull all their money and the company folds. ", 2, null, 9),
+            insertEventCards("Elon Musk’s self-made nephew and genius startupper rethinks his career ambitions. He closes Code Monkey and reinvests the money in an “Ontario Poutine” food truck chain he plans to open in Quebec. ", 2, null, 10),
+            insertEventCards("Hungry for a job and building upon their experience with the Queen’s Royal Corgis, Meghan and Harry launch a new luxury dog walking service. Poopora loses its client base and goes bankrupt. ", 2, null, 1),
+            insertEventCards("Bay Street Angel investors who funded High Sugar never actually believed that such a niche company would succeed. They manage to unload junk shares on people’s saving accounts before it goes bankrupt.", 2, null, 6),
+            insertEventCards("Online sex experiences a major market concentration. Most websites are absorbed by Montreal giant DirtHub, including Cam with Benefits. The service is taken offline.", 2, null, 2),
+            insertEventCards("The City runs out of money and cuts its recycling and composting programs. Garbage sorting goes back to being so easy that TrashPanda loses most of its revenues. It immediately files for bankruptcy.", 2, null, 12),
+            insertEventCards("Robo A+ purchases MyBrainOnBubbleTea, a new machine learning start-up that has automated essay writing. All jobs are taken offline. On Peddit, anonymous students report that their grades have gone up.", 2, null, 7),
+            insertEventCards("Berlin is here! The subway starts running 24/7 and CheeseWagon’s cashflow dips. The company folds immediately and sells all its school buses to Scouts Canada.", 2, null, 3),
+            insertEventCards("Justin Trudeau reveals that his dog Kenzie loves being walked by Poopers. The hype boosts work for the app, which raises its wages by 20%.", 1, 1.2, 1),
+            insertEventCards("New city bylaw: the city adds four new types of garbage bins. So difficult! People hire more Pandas to sort their waste, and the pay goes up by 20%.", 1, 1.2, 12),
+            insertEventCards("A major snowstorm locks everyone at home for the entire weekend. There is nothing else to do but to order more pot from Skip the Pusher. Pushers risk their lives on the slippery roads but make an extra 20%.", 1, 1.2, 8),
+            insertEventCards("Dim’s introduces new robots in its warehouses. Each can pack one hundred potato chips bags per minute. There are no layoffs, but DimBits’ wages are 20% lower than usual.", 1, 0.8, 4),
+            // Fixed Event Cards
+            insertFixedEventCards("Black Tuesday! Sales are hot today. Dim’s has a special offer with new potato chip flavours and discounted cigarettes. Pay goes up 20% for all DimBits.", 1, 1.2, 3, 4),
+            insertFixedEventCards("Valentine’s Day is coming up. Lovers order tons of heart-shaped donuts from High Sugar, and pay goes up 20%.", 1, 1.2, 4, 6),
+            insertFixedEventCards("Singles buy lots of love from CWB and Cammers’ pay goes up 20%.", 1, 1.2, 4, 2),
+            insertFixedEventCards("Most mid-term essays are due this week. Robo A+ has a spike in orders and pays 20% more.", 1, 1.2, 6, 7),
+            insertFixedEventCards("Long weekend: everyone is out of town, taking their garbage with them. TrashPanda cuts work by 20%.", 1, 0.8, 8, 12),
+            insertFixedEventCards("St. Patrick’s Day. Party time for the Irish, and someone has to drive them around all night. Cheesewagon pays 20% more.", 1, 1.2, 9, 3)
+
         ]
         ).then(() => resolve())
     })

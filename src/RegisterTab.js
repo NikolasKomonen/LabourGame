@@ -132,10 +132,9 @@ class RegisterTab extends Component {
     }
   }
 
-  handleGameIDSelection(event) {
-    console.log(event)
-    const newState = { ...this.state }
-    newState.gameIDSelection = event.target.value
+  handleGameIDSelection(value) {
+    const newState = {}
+    newState.gameIDSelection = value
     this.setState(newState)
   }
 
@@ -143,7 +142,7 @@ class RegisterTab extends Component {
     const classes = useStyles;
     const renderRegistrationError = this.state.registrationFailed
     const gameIDOptions = this.state.gameIDs.map((item, index) => {
-      return (<MenuItem key={index} value={item.id} onClick={() => {this.clearOldErrors()}}>{item.name}</MenuItem>)
+      return (<MenuItem key={index} value={item.id}>{item.name}</MenuItem>)
     })
 
     return (
@@ -156,7 +155,7 @@ class RegisterTab extends Component {
           <Typography component="h1" variant="h5">
             Register
                 </Typography>
-          <form className={classes.form} onChange={() => { this.clearOldErrors() }} onKeyDown={(e) => { this.ifEnterPressed(e.keyCode) }}>
+          <form className={classes.form} onChange={() => { this.clearOldErrors() }}>
             <TextField
               variant="outlined"
               margin="normal"
@@ -199,7 +198,7 @@ class RegisterTab extends Component {
               value={this.state.gameIDSelection}
               className="col-12"
               required
-              onChange={(e) => {this.handleGameIDSelection(e); this.clearOldErrors()}}
+              onChange={(e) => {this.handleGameIDSelection(e.target.value); this.clearOldErrors()}}
             >
               {gameIDOptions}
             </Select>

@@ -7,6 +7,7 @@ import LoginPage from "./pages/login"
 import GamePage from "./pages/game"
 import RootRedirect from "./pages/root"
 import RegisterPage from "./pages/register"
+import ResultsPage from "./pages/results"
 
 class App extends Component {
 
@@ -25,6 +26,7 @@ class App extends Component {
                     <Route path="/login" component={LoginPage} />
                     <Route path="/register" component={RegisterPage} />
                     <Route path="/game" component={GamePage}/>
+                    <Route path="/results" component={ResultsPage} />
                     <Route path="*" component={RootRedirect} />
                 </Switch>
             </div>

@@ -6,131 +6,50 @@ import { BRAIN_ID, MUSCLE_ID, HEART_ID, STRIKE_ID } from './GameForm'
 export default class GameRow extends React.Component {
     constructor(props) {
         super(props);
-        const hours = parseInt(props.company.hours)
-        const brainValue = parseInt(props.company.brain) * hours
-        const muscleValue = parseInt(props.company.muscle) * hours
-        const heartValue = parseInt(props.company.heart) * hours
-        const strike = props.company.strike === 0 ? false : true
-        this.state = {
-            hours: hours,
-            strikeEnabled: hours > 0,
-            strike: strike,
-            brain: brainValue,
-            muscle: muscleValue,
-            heart: heartValue,
-        }
         this.timer = undefined
-    }
-
-    componentDidMount() {
-        this.props.parent.updateTotals(this.state.hours, this.state.brain, this.state.muscle, this.state.heart)
-        this.setState(this.state)
+        this.onToggleStrike = this.onToggleStrike.bind(this)
     }
 
     onChangedHours(hoursEntered, isResource) {
         const parsedInt = parseInt(hoursEntered)
-        if (!isNaN(parsedInt) && hoursEntered >= 0) {
-            if(isResource && parsedInt > 5) {
+        const companyID = this.props.id
+        if (!isNaN(parsedInt) && parsedInt >= 0) {
+            if(isResource && parsedInt > 5) { // limit of 5 to 'Resource' hours
                 return;
             }
-            const newState = { ...this.state }
-            newState.hours = hoursEntered
-            newState.strikeEnabled = (parsedInt > 0) ? true : false
-            newState.brain = (this.props.company.brain * hoursEntered)
-            newState.muscle = (this.props.company.muscle * hoursEntered)
-            newState.heart = (this.props.company.heart * hoursEntered)
-
-            const brainDelta = newState.brain - this.state.brain
-            const muscleDelta = newState.muscle - this.state.muscle
-            const heartDelta = newState.heart - this.state.heart
-            const hoursDelta = newState.hours - this.state.hours
-            this.props.parent.updateTotals(hoursDelta, brainDelta, muscleDelta, heartDelta)
-
-            this.setState(newState, () => {
-                this.updateSelection()
-            })
-            
-            return;
+            this.props.updateCompanyHours(hoursEntered, companyID)
         }
         else if (hoursEntered === undefined || hoursEntered === null || hoursEntered.length === 0) {
-            const newState = { ...this.state }
-            newState.hours = ''
-            newState.strikeEnabled = false
-            newState.brain = 0
-            newState.muscle = 0
-            newState.heart = 0
-
-            const brainDelta = 0 - this.state.brain
-            const muscleDelta = 0 - this.state.muscle
-            const heartDelta = 0 - this.state.heart
-            const hoursDelta = 0 - this.state.hours
-            this.props.parent.updateTotals(hoursDelta, brainDelta, muscleDelta, heartDelta)
-
-            this.setState(newState, () => {
-                this.updateSelection()
-            })
-            
-            return;
+            this.props.updateCompanyHours(hoursEntered, companyID)
         }
-
-    }
-
-    updateSelection() {
-        this.props.parent.setNotSaved();
-        if(this.timer) {
-            clearTimeout(this.timer)
-        }
-        else {
-            this.props.parent.selectionStack++;
-        }
-        const updatedSelection = this.getUpdatedSelection()
-        this.timer = setTimeout(() => {this.timer=undefined; this.props.parent.updateSelection(updatedSelection)} , 2000)
     }
 
     onToggleStrike(checked) {
-        const newState = { ...this.state }
-        newState.strike = checked
-        this.setState(newState, () => {
-            this.updateSelection()
-        })
-
-    }
-
-    getUpdatedSelection() {
-        const hours = this.state.hours
-        let hoursValue;
-        if (!isNaN(hours) && hours > 0) {
-            hoursValue = this.state.hours
-        }
-        else {
-            hoursValue = 0
-        }
-        return {
-            companies_name: this.props.company.companies_name,
-            hours: hoursValue,
-            strike: hoursValue > 0 ? this.state.strike : false
-        }
+        const companyID = this.props.id
+        this.props.updateCompanyStrike(checked, companyID)
     }
 
     render() {
-        
-        const company = this.props.company
+        const dynamic = this.props.dynamic
+        const constants = this.props.constants
+        const id = this.props.id
         const index = this.props.index
         const submitted = this.props.submitted
-        const name = company.companies_name
-        const isCompany = !["MEDITATION", "GYM", "TUTORIAL"].includes(name)
+        const isCompany = !["MEDITATION", "GYM", "TUTORIAL"].includes(constants.name)
+        const hoursValue = dynamic.isBlankHours ? "" : dynamic.hours
+        const strike = dynamic.strike
         return (
-            <Box className="col-12 " px={0} borderBottom={ index >= (this.props.parent.state.numRows-1) ? 0 : 0.2}>
+            <Box className="col-12 " px={0} borderBottom={ index >= (this.props.numRows-1) ? 0 : 0.2}>
                 <FormControl className="col-12">
                     <FormGroup row>
                         <Box className="col-md-2" display="flex" marginY={!isCompany ? 1 : 0} bgcolor={!isCompany ? "secondary.main" : null}>
                             <Box className="my-auto mx-auto" >
-                                <Typography>{company.companies_name}</Typography>
+                                <Typography>{constants.name}</Typography>
                             </Box>
                         </Box>
                         <Box className="col-md-3 col-6" display="flex" >
                             <Box className="my-auto mx-auto">
-                                <TextField disabled={submitted} value={this.state.hours}  id={"game-hours-" + index} name="hours" variant="outlined" size="small"
+                                <TextField disabled={submitted} value={hoursValue}  id={"game-hours-" + id} name="hours" variant="outlined" size="small"
                                     InputProps={{ endAdornment: <InputAdornment position="end">Hrs</InputAdornment>, }}
                                     onChange={(e) => this.onChangedHours(e.target.value, !isCompany)} />
                             </Box >
@@ -139,13 +58,13 @@ export default class GameRow extends React.Component {
                             <Box className="my-auto mx-auto" >
                                 <TextField
                                     disabled
-                                    id={BRAIN_ID + index}
-                                    label={String(company.brain)}
+                                    id={BRAIN_ID + id}
+                                    label={String(constants.brainMultiplier)}
                                     variant="filled"
                                     margin="dense"
                                     style={{ width: 60 }}
                                     inputProps={{ style: { textAlign: 'right' } }}
-                                    value={this.state.brain}
+                                    value={dynamic.brain}
                                 />
                             </Box>
                         </Box>
@@ -153,13 +72,13 @@ export default class GameRow extends React.Component {
                             <Box className="my-auto mx-auto" >
                                 <TextField
                                     disabled
-                                    id={MUSCLE_ID + index}
-                                    label={String(company.muscle)}
+                                    id={MUSCLE_ID + id}
+                                    label={String(constants.muscleMultiplier)}
                                     variant="filled"
                                     margin="dense"
                                     style={{ width: 60 }}
                                     inputProps={{ style: { textAlign: 'right' } }}
-                                    value={this.state.muscle}
+                                    value={dynamic.muscle}
                                 />
                             </Box>
                         </Box>
@@ -167,13 +86,13 @@ export default class GameRow extends React.Component {
                             <Box className="my-auto mx-auto" >
                                 <TextField
                                     disabled
-                                    id={HEART_ID + index}
-                                    label={String(company.heart)}
+                                    id={HEART_ID + id}
+                                    label={String(constants.heartMultiplier)}
                                     variant="filled"
                                     margin="dense"
                                     style={{ width: 60 }}
                                     inputProps={{ style: { textAlign: 'right' } }}
-                                    value={this.state.heart}
+                                    value={dynamic.heart}
                                 />
                             </Box>
                         </Box>
@@ -182,18 +101,16 @@ export default class GameRow extends React.Component {
 
                                 <Box className="col-md-1" display="flex">
                                     <FormControlLabel
-                                        hidden={!this.state.strikeEnabled}
+                                        hidden={!dynamic.hours > 0}
                                         className="my-auto mx-auto"
                                         value="end"
-                                        control={<Checkbox checked={this.state.strike} color="primary" id={STRIKE_ID + index} onChange={(e) => this.onToggleStrike(e.target.checked)} />}
+                                        control={<Checkbox checked={strike} color="primary" id={STRIKE_ID + id} onChange={(e) => this.onToggleStrike(e.target.checked)} />}
                                         label="Strike"
                                         labelPlacement="top"
-                                        disabled={submitted || !this.state.strikeEnabled}
+                                        disabled={submitted || !dynamic.hours > 0}
                                     />
                                 </Box>
                                 : null
-
-
                         }
 
                     </FormGroup>

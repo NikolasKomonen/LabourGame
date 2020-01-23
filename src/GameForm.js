@@ -37,43 +37,34 @@ const styles = withStyles({
     }
 });
 
+
+
 class GameForm extends React.Component {
 
     constructor() {
         super();
+        this.updateCompanyStrike = this.updateCompanyStrike.bind(this);
+        this.updateCompanyHours = this.updateCompanyHours.bind(this);
         this.state = {
             isLoaded: false,
             submitted: false,
-            companies: [],
-            saveStatus: "Last Saved " + new Date().toLocaleTimeString(),
+            companyIDs: [],
+            saveStatus: this.getLastSavedMessage(),
             week: 0,
             totalProfit: 0,
             weekProfit: 0,
-            distributablePoints: 0,
-            availableBrain: 0,
-            availableMuscle: 0,
-            availableHeart: 0,
-            totalBrain: 0,
-            totalHeart: 0,
-            totalMuscle: 0,
-            totalHours: 0
-
+            totalAvailableResources: {brain:0, muscle:0, heart: 0},
+            resultTotals: {hours: 0, brain:0, muscle:0, heart: 0},
+            //c_1: { hours: 0, isBlankHours: false, brain: 0, muscle: 0, heart: 0 , strike: false},
+            //c_1_constants: {name: "", brainMultiplier: 0, muscleMultiplier: 0, heartMultiplier: 0}
         }
         this.timer = undefined
         // stack to determine set the saved status only after the most recent request is successful
         // incremented in GameRow
-        this.selectionStack = 0;
-    }
-
-    updateTotals(hours, brain, muscle, heart) {
-        this.setState((prevState) => {
-            const newState = { ...prevState}
-            newState.totalBrain+=brain
-            newState.totalMuscle+=muscle
-            newState.totalHeart+=heart
-            newState.totalHours+=hours
-            return newState
-        })
+        this.sentStack = 0;
+        this.pendingRows = {}
+        this.pendingAvailableResources = {}
+        this.savingMessage = "Saving..."
     }
 
     componentDidMount() {
@@ -81,35 +72,156 @@ class GameForm extends React.Component {
             .then(res => {
                 return res.json();
             }).then(data => {
-                const tempState = { ...this.state }
+                const tempState = {}
                 const len = data.rows.length
-                tempState.companies = data.rows
+                this.initializeGameValues(data)
                 tempState.submitted = data.submitted
                 tempState.week = data.week
                 tempState.isLoaded = true
                 tempState.numRows = len
                 tempState.username = data.username
-                tempState.availableBrain = data.available_brain
-                tempState.availableMuscle = data.available_muscle
-                tempState.availableHeart = data.available_heart
-                tempState.distributablePoints = data.distributablePoints
                 tempState.totalProfit = data.total_profit
                 tempState.weekProfit = data.week_profit
-                if(tempState.week === 1) {
-                    tempState.totalDistributablePoints = data.distributablePoints
-                    tempState.distributablePoints = (tempState.distributablePoints*4) - tempState.availableBrain - tempState.availableMuscle - tempState.availableHeart
-                }
                 this.setState(tempState)
             }, (error) => {
                 console.log("Error fetching companies: " + error)
             })
     }
 
-    updateSelection(newRow) {
+    initializeGameValues(data) {
+        const gameRows = data.rows
+        const initialGameValues = {}
+        const initialResultTotals = {hours: 0, brain: 0, muscle: 0, heart: 0}
+        initialGameValues.companyIDs = []
+        gameRows.forEach(row => {
+            const id = row.id
+            const hours = row.hours
+            const brainCost = row.brainMultiplier * hours
+            const muscleCost = row.muscleMultiplier * hours
+            const heartCost = row.heartMultiplier * hours
+            initialGameValues.companyIDs.push(id)
+            initialGameValues["c_" + id] = {
+                hours: hours,
+                isBlankHours: false,
+                brain: brainCost,
+                muscle: muscleCost,
+                heart: heartCost,
+                strike: row.strike > 0
+            }
+
+            initialGameValues["c_" + id + "_constants"] = {
+                name: row.name,
+                brainMultiplier: row.brainMultiplier, 
+                muscleMultiplier: row.muscleMultiplier, 
+                heartMultiplier: row.heartMultiplier
+            }
+            
+            // Adding each row's cost to the total to initialize
+            initialResultTotals.hours += hours
+            initialResultTotals.brain += brainCost
+            initialResultTotals.muscle += muscleCost
+            initialResultTotals.heart += heartCost
+        });
+        initialGameValues.resultTotals = initialResultTotals
+
+        const availableBrain = data.available_brain
+        const availableMuscle = data.available_muscle
+        const availableHeart = data.available_heart
+        //IMPORTANT: assuming that all parts are the same value (eg: 30)
+        if(data.week === 1) {
+            initialGameValues.initialDist = data.distributablePoints
+            initialGameValues.remainingDist = (data.distributablePoints * 4) - availableBrain - availableMuscle- availableHeart
+        }
+        initialGameValues.totalAvailableResources = 
+                                    {
+                                        brain: availableBrain, 
+                                        muscle: availableMuscle,
+                                        heart: availableHeart
+                                    }
+        this.setState(initialGameValues)
+    }
+
+    updateCompanyHours(newHours, companyID) {
+        const isEmptyText = newHours.length === 0
+        let parsedHours = isEmptyText ? 0 : parseInt(newHours)
+        const constants = this.state["c_" + companyID + "_constants"]
+        const companyRow = "c_" + companyID
+        const oldRow = this.state[companyRow]
+        const newRow = 
+                    {   
+                        hours: parsedHours,
+                        isBlankHours: isEmptyText,
+                        brain: (parsedHours * constants.brainMultiplier), 
+                        muscle: (parsedHours * constants.muscleMultiplier), 
+                        heart: (parsedHours * constants.heartMultiplier),
+                        strike: oldRow.strike
+                    }
+        const newState = {}
+        newState[companyRow] = newRow
+        
+        this.setState(newState)
+        this.updateTotalResults(
+                        newRow.hours - oldRow.hours,
+                        newRow.brain - oldRow.brain,
+                        newRow.muscle - oldRow.muscle,
+                        newRow.heart - oldRow.heart
+        )
+        this.startRowUpdate(newRow, companyID)
+    }
+
+    updateTotalResults(hoursDelta, brainDelta, muscleDelta, heartDelta) {
+        const oldTotals = this.state.resultTotals
+        const newTotals = 
+                    {
+                        hours: oldTotals.hours + hoursDelta,
+                        brain: oldTotals.brain + brainDelta,
+                        muscle: oldTotals.muscle + muscleDelta,
+                        heart: oldTotals.heart + heartDelta
+                    }
+        this.setState({resultTotals: newTotals})
+    }
+
+    updateCompanyStrike(strike, companyID) {
+        const newState = {}
+        const companyRow = "c_" + companyID
+        let oldRow;
+        const pendingRow = this.pendingRows[companyID]
+        if(pendingRow) {
+            oldRow = pendingRow
+        }
+        else {
+            oldRow = this.state[companyRow]
+        }
+        const newRow = { ...oldRow }
+        newRow.strike = strike
+        newState[companyRow] = newRow
+        this.setState(newState)
+        this.startRowUpdate(newRow, companyID)
+        
+        
+    }
+
+    startRowUpdate(newRow, companyID) {
+        
+        if(this.timer) {
+            clearTimeout(this.timer)
+            this.sentStack--;
+        }
+        this.pendingRows[companyID] = {hours: newRow.hours, strike: newRow.strike}
+        this.timer = setTimeout(() => {this.sendBatchedUpdate()}, 3000)
+        this.sentStack++;
+        this.setState({saveStatus: this.savingMessage})
+    }
+
+    sendBatchedUpdate() {
+        if(Object.keys(this.pendingRows).length < 1) {
+            return;
+        }
         const data = {
-            update: newRow, // {companies_name: ... , hours: ... , strike: ...}
+            update: this.pendingRows, // {COMPANY_ID: {hours: ... , strike: ...}, ...}
             week: this.state.week,
         }
+        console.log("Sending hours: ", data)
         fetch('/api/updateSelection', {
             method: 'POST',
             body: JSON.stringify(data),
@@ -117,87 +229,93 @@ class GameForm extends React.Component {
                 'Content-Type': 'application/json'
             }
         }).then((res) => {
-            this.selectionStack--
+            this.sentStack--
             const status = res.status
-            if (status === 200 && this.selectionStack === 0) {
-                const newState = { ...this.state }
-                newState.saveStatus = "Last Saved " + new Date().toLocaleTimeString();
-                this.setState(newState)
-                return;
+            if (status === 200) {
+                this.pendingRows = {}
+                if(this.sentStack === 0) {
+                    const newState = {}
+                    newState.saveStatus = this.getLastSavedMessage();
+                    this.setState(newState)
+                }
             }
+            this.timer = null
         })
+    }
 
+    getLastSavedMessage() {
+        return "Last Saved " + new Date().toLocaleTimeString()
     }
 
     setNotSaved() {
-        if (this.state.saveStatus !== "Not Saved") {
+        if (this.state.saveStatus !== this.savingMessage) {
             const newState = { ...this.state }
-            newState.saveStatus = "Not Saved";
+            newState.saveStatus = this.savingMessage;
             this.setState(newState)
         }
     }
 
     canTakeAvailablePoint() {
-        return this.state.distributablePoints > 0
+        return this.state.remainingDist > 0
     }
 
     canReturnAvailablePoint(part) {
-        let overMinimum;
+        let minimum = this.state.initialDist
+        let current;
         if(part === "brain") {
-            overMinimum = this.state.availableBrain > this.state.totalDistributablePoints
+            current = this.state.totalAvailableResources.brain
         }
         else if(part === "muscle") {
-            overMinimum = this.state.availableMuscle > this.state.totalDistributablePoints
+            current = this.state.totalAvailableResources.muscle
         }
         else {
-            overMinimum = this.state.availableHeart > this.state.totalDistributablePoints
+            current = this.state.totalAvailableResources.heart
         }
-        return overMinimum && this.state.distributablePoints < this.state.totalDistributablePoints
+        return current > minimum
     }
 
     incrementAvailable(part) {
-        const newState = { ...this.state}
         if(this.canTakeAvailablePoint()) {
-            newState.distributablePoints-=1
-            if(part === 'brain') {
-                newState.availableBrain+=1
-            }
-            else if(part === 'muscle') {
-                newState.availableMuscle+=1
-            }
-            else {
-                newState.availableHeart+=1
-            }
-            newState.saveStatus = "Not Saved"
+            const newState = {}
+            newState.remainingDist = this.state.remainingDist - 1
+            const newAvailable = { ...this.state.totalAvailableResources}
+            newAvailable[part] += 1
+            newState.totalAvailableResources = newAvailable
+            this.startAvailablePointsUpdate(newState.totalAvailableResources)
             this.setState(newState)
-            this.updateAvailablePoints(newState)
         }
-        
     }
 
     decrementAvailable(part) {
-        const newState = { ...this.state}
+        const newState = {}
         if(this.canReturnAvailablePoint(part)) {
-            newState.distributablePoints+=1
-            if(part === 'brain') {
-                newState.availableBrain-=1
-            }
-            else if(part === 'muscle') {
-                newState.availableMuscle-=1
-            }
-            else {
-                newState.availableHeart-=1
-            }
+            newState.remainingDist = this.state.remainingDist + 1
+            const newAvailable = { ...this.state.totalAvailableResources}
+            newAvailable[part] -= 1
+            newState.totalAvailableResources = newAvailable
+            this.startAvailablePointsUpdate(newState.totalAvailableResources)
             this.setState(newState)
-            this.updateAvailablePoints(newState)
         }
     }
 
-    updateAvailablePoints(newState) {
+    startAvailablePointsUpdate(totalAvailableResources) {
+        if(this.resourcesTimer) {
+            clearTimeout(this.resourcesTimer)
+            this.sentStack--;
+        }
+        this.pendingAvailableResources = totalAvailableResources
+        this.resourcesTimer = setTimeout(() => {this.sendBatchedAvailablePointsUpdate()}, 5000)
+        this.sentStack++;
+        this.setState({saveStatus: this.savingMessage})
+    }
+
+    sendBatchedAvailablePointsUpdate() {
+        if(Object.keys(this.pendingAvailableResources).length < 1) {
+            return;
+        }
         const data = {
-            available_brain: newState.availableBrain,
-            available_muscle: newState.availableMuscle,
-            available_heart: newState.availableHeart
+            week: this.state.week,
+            available: this.pendingAvailableResources
         }
         fetch('/api/updateAvailablePoints', {
             method: 'POST',
@@ -206,25 +324,50 @@ class GameForm extends React.Component {
                 'Content-Type': 'application/json'
             }
         }).then((res) => {
-            let saveMessage;
-            if(res.status === 200) {
-                saveMessage = "Last Saved " + new Date().toLocaleTimeString()
+            this.sentStack--
+            this.pendingAvailableResources = {}
+            if(this.sentStack === 0) {
+                if(res.status === 200) {
+                    const saveMessage = this.getLastSavedMessage()
+                    const newState = {}
+                    newState.saveStatus = saveMessage
+                    this.setState(newState)
+                } 
             }
-            else {
-                saveMessage = "Issue saving on the server, contact Nikolas"
-            }
-            const newState = { ...this.state }
-            newState.saveStatus = saveMessage
-            this.setState(newState)
+            this.resourcesTimer = null
         })
     }
     
     submitSelection() {
+        let canSubmit = true;
+        if((this.state.totalAvailableResources.brain - this.state.resultTotals.brain) < 0) {
+            canSubmit = false;
+        }
+        if(canSubmit && (this.state.totalAvailableResources.muscle - this.state.resultTotals.muscle) < 0) {
+            canSubmit = false;
+        }
+        if(canSubmit && (this.state.totalAvailableResources.heart - this.state.resultTotals.heart) < 0) {
+            canSubmit = false;
+        }
+
+        if(!canSubmit) {
+            return;
+        }
+
+        // Send all pending changes to server
+        clearTimeout(this.timer)
+        clearTimeout(this.resourcesTimer)
+        this.sendBatchedUpdate()
+        this.sendBatchedAvailablePointsUpdate()
         
-        fetch('/api/submitGameForm').then((res) => {
-            const enoughPointsAvailable = this.state.availableBrain >= 0 && this.state.availableHeart >= 0 && this.state.availableMuscle >= 0
-            if(res.status === 200 && enoughPointsAvailable) {
-                const newState = { ...this.state }
+        fetch('/api/submitGameForm', {
+            method: 'POST',
+            body: JSON.stringify({week: this.state.week}),
+            headers: {
+                'Content-Type': 'application/json'
+            }}).then((res) => {
+            if(res.status === 200) {
+                const newState = {}
                 newState.submitted = true
                 newState.saveStatus = "Submitted"
                 this.setState(newState)
@@ -291,12 +434,12 @@ class GameForm extends React.Component {
                 <Box className={this.props.classes.availablePointsContainer + " col-12 mt-3 py-3"} borderRadius={5}>
                     <Box className="row">
                         <Box className="col-md-5 my-auto" style={{color:'white'}}display="flex" justifyContent="center">
-                            Available Points {this.state.week === 1 ? '(Distributable Points: '+this.state.distributablePoints+')' : null}
+                            Available Points {this.state.week === 1 ? '(Distributable Points: '+this.state.remainingDist+')' : null}
                         </Box>
                         <Box className="col-md-6 p-0" display="flex">
-                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="brain" available={this.state.availableBrain-this.state.totalBrain}/>
-                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="muscle" available={this.state.availableMuscle-this.state.totalMuscle}/>
-                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="heart" available={this.state.availableHeart-this.state.totalHeart}/>
+                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="brain" available={this.state.totalAvailableResources.brain - this.state.resultTotals.brain}/>
+                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="muscle" available={this.state.totalAvailableResources.muscle - this.state.resultTotals.muscle}/>
+                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="heart" available={this.state.totalAvailableResources.heart - this.state.resultTotals.heart}/>
                         </Box>
                     </Box>
 
@@ -337,12 +480,23 @@ class GameForm extends React.Component {
                         </Box>
                     </Box>
                 </Box>
-                {this.state.companies.map((c, i) => {
+                
+                {this.state.companyIDs.map((id, index) => {
                     return (
-                        <GameRow key={c.companies_name} company={c} index={i} parent={this} submitted={this.state.submitted}/>
+                        <GameRow 
+                                key={id}
+                                id={id}
+                                index={index} 
+                                dynamic={this.state["c_" + id]} 
+                                constants={this.state["c_" + id + "_constants"]} 
+                                submitted={this.state.submitted}
+                                numRows={this.state.numRows}
+                                updateCompanyHours={this.updateCompanyHours}
+                                updateCompanyStrike={this.updateCompanyStrike}
+                        />
                     );
                 })}
-                <GameTotals hours={this.state.totalHours} brain={this.state.totalBrain} muscle={this.state.totalMuscle} heart={this.state.totalHeart}/>
+                <GameTotals totals={this.state.resultTotals}/>
 
             </Box>
         );

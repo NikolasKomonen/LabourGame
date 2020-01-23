@@ -12,11 +12,11 @@ const styles = theme => ({
 export default class GameRow extends React.Component {
     
     render() {
-        
-        const totalBrain = this.props.brain
-        const totalMuscle = this.props.muscle
-        const totalHeart = this.props.heart
-        const totalHours = this.props.hours
+        const totals = this.props.totals
+        const totalBrain = totals.brain
+        const totalMuscle = totals.muscle
+        const totalHeart = totals.heart
+        const totalHours = totals.hours
 
         return (
             <Box className="col-12 " px={0} borderBottom={2} borderTop={2}>

@@ -8,7 +8,6 @@ let db = new SQL(path.join(__dirname, 'database/dbFile.sqlite'));
 db.startDB()
 const session = require('express-session')
 const encryption = require('./encryption')
-const sessionAccounts = {}
 const admin = require('./administration')
 
 app.use(session({
@@ -23,9 +22,8 @@ app.use(express.static(path.join(__dirname,'../build')))
 
 app.get('/api/getGameFormData', (req, res) => {
 	const data = {}
-	const id = req.sessionID
-	const username = sessionAccounts[id].username
-	const week = admin.currentWeek[sessionAccounts[req.sessionID].campaign_id]
+	const username = req.session.username
+	const week = req.body.week == null ? admin.currentWeek[req.session.campaign_id] : req.body.week
 	data.username = username
 	data.week = week
 	Promise.all([
@@ -33,7 +31,7 @@ app.get('/api/getGameFormData', (req, res) => {
 		db.all(
 			`
 			SELECT 
-				comp.name AS companies_name, brain, muscle, heart, COALESCE(hours, 0) hours, COALESCE(strike, 0) strike 
+				comp.name AS name, comp.id AS id, brain AS brainMultiplier, muscle AS muscleMultiplier, heart AS heartMultiplier, COALESCE(hours, 0) hours, COALESCE(strike, 0) strike 
 			FROM 
 				(
 					SELECT 
@@ -48,22 +46,24 @@ app.get('/api/getGameFormData', (req, res) => {
 				)
 				AS comp 
 			LEFT JOIN 
-				(SELECT * FROM user_game_selections WHERE accounts_username=?) AS selec 
+				(SELECT * FROM user_game_selections WHERE accounts_username=? AND weeks_week=?) AS selec 
 			ON 
 				comp.id=selec.companies_id
 			ORDER BY
 				comp.id ASC
 			`
-			, [week, username]),
+			, [week, username, week]),
 		db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week])
 	]).then((queries) => {
 		// [ 
-			//	{ companies_name: 'Best Buy',
-			// 	  brain: 4,
-			//    muscle: 5,
-			//    heart: 2,
+			//	{ 
+			//    id: 1,
+			//	  name: 'Best Buy',
+			// 	  brainMultiplier: 4,
+			//    muscleMultiplier: 5,
+			//    heartMultiplier: 2,
 			//    hours: 12,
-			//    strike: 0 
+			//    strike: 0,
 			//  } , ... 
 		// ]
 		const company_sessions = queries[1]
@@ -71,7 +71,7 @@ app.get('/api/getGameFormData', (req, res) => {
 		let ordered_companies = []
 		let ordered_resources = []
 		company_sessions.forEach(company => {
-			const name = company.companies_name
+			const name = company.name
 			
 			if(name === "TUTORIAL") {
 				ordered_resources[0] = company
@@ -127,21 +127,21 @@ app.get('/api/getGameFormData', (req, res) => {
 				Promise.all(
 					[
 						db.all(`SELECT 
-									companies_name, hours 
+									companies.name, hours 
 								FROM 
 									companies
 								JOIN
 									user_game_selections
 								ON
-									companies_id=user_game_selections.companies_id
+									companies.id=user_game_selections.companies_id
 								WHERE 
 									accounts_username=? 
 									AND
 									weeks_week=?
 									AND
-									companies_name IN ('MEDITATION', 'GYM', 'TUTORIAL') 
+									companies.name IN ('MEDITATION', 'GYM', 'TUTORIAL') 
 								ORDER BY 
-									companies_name`
+									companies.name`
 							, [username, lastWeek]),
 				
 						db.get("SELECT * FROM user_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, lastWeek]),
@@ -152,10 +152,10 @@ app.get('/api/getGameFormData', (req, res) => {
 					const resourceHours = queries[0]
 					let [additional_brain, additional_muscle, additional_heart] = [0, 0, 0]
 					resourceHours.forEach(row => {
-						if(row.companies_name === "MEDITATION") {
+						if(row.name === "MEDITATION") {
 							additional_heart = row.hours
 						}
-						else if(row.companies_name === "GYM") {
+						else if(row.name === "GYM") {
 							additional_muscle = row.hours
 						}
 						else {
@@ -182,57 +182,59 @@ app.get('/api/getGameFormData', (req, res) => {
 	})
 })
 
-app.get('/api/submitGameForm', (req, res) => {
-	const id = req.sessionID
-	const username = sessionAccounts[id].username
-	const week = admin.currentWeek[sessionAccounts[req.sessionID].campaign_id]
+app.post('/api/submitGameForm', (req, res) => {
+	const username = req.session.username
+	const week = req.body.week
 	db.run(`UPDATE user_game_weeks SET submitted=1 WHERE accounts_username=? AND weeks_week=?`, [username, week]).then(() => {
 		res.status(200).end()
 	})
 }) 
 
 app.post('/api/updateSelection', (req, res) => {
-	const id = req.sessionID
-	const selection = req.body // { week, update : {companies_name, hours, strike}}
-	const username = sessionAccounts[id].username
-	const week = admin.currentWeek[sessionAccounts[req.sessionID].campaign_id]
-	const update = selection.update
-	const companyName = update.companies_name
-	let hours = update.hours
-	if(isNaN(hours)) {
-		hours = 0
-	}
-	const strike = hours === 0 ? false : update.strike
-	if(username && week && companyName && (hours >= 0) && strike !== undefined) {
-		if(hours === 0) {
-			db.run("DELETE FROM user_game_selections WHERE accounts_username=? AND companies_id=(SELECT id FROM companies WHERE name=?) AND weeks_week=?", 
-			[username, companyName, week]).then(() => {
-				res.status(200).send()
-			})
-		}
-		else {
-			db.run("REPLACE INTO user_game_selections (accounts_username, companies_id, weeks_week, hours, strike) VALUES (?, (SELECT id FROM companies WHERE name=?), ?, ?, ?)", 
-				[username, companyName, week, hours, strike]).then((success) => {
-					res.status(200)
-					res.end()
-				}).catch((err) => {console.log("Bad data from /api/updateSelection."); res.status(500).end()})
-		}
-		
-	}
-	else {
-		console.log("Not all information available in /api/updateSelection")
-		res.status(500).end()
-	}
+	const selection = req.body // { week, update : {COMPANY_ID: {hours, strike}, ...}}
+	const username = req.session.username
+	const updates = selection.update
+	const week = selection.week
+	db.run(`BEGIN TRANSACTION;`).then(() => {
+		const queries = Object.keys(updates).map((id) => {
+			const update = updates[id]
+			const companyID = parseInt(id)
+			let hours = update.hours
+			if(isNaN(hours)) {
+				hours = 0
+			}
+			let updatedStrike = update.strike
+			if(updatedStrike == null) {
+				updatedStrike = false
+			}
+			const strike = hours === 0 ? false : updatedStrike
+			if(username && week && (hours >= 0)) {
+				if(hours === 0) {
+					return db.run("DELETE FROM user_game_selections WHERE accounts_username=? AND companies_id=? AND weeks_week=?;"
+					,[username, companyID, week])
+				}
+				else {
+					return db.run("REPLACE INTO user_game_selections (accounts_username, companies_id, weeks_week, hours, strike) VALUES (?, ?, ?, ?, ?);",
+					[username, companyID, week, hours, strike])
+				}	
+			}
+			return null;
+		})
+		Promise.all(queries).then(() => {
+			return db.run(`COMMIT;`)
+		})
+		.then(() => {
+			res.status(200).send()
+		})
+	})
 })
 
 app.post('/api/updateAvailablePoints', (req, res) => {
-	const id = req.sessionID
-	const username = sessionAccounts[id].username
+	const username = req.session.username
 	const data = req.body
-	const brain = data.available_brain
-	const muscle = data.available_muscle
-	const heart = data.available_heart
-	db.run('UPDATE user_game_weeks SET available_brain=?, available_muscle=?, available_heart=? WHERE accounts_username=? AND weeks_week=?', [brain, muscle, heart, username, admin.currentWeek[sessionAccounts[req.sessionID].campaign_id]])
+	const week = data.week
+	const available = data.available
+	db.run('UPDATE user_game_weeks SET available_brain=?, available_muscle=?, available_heart=? WHERE accounts_username=? AND weeks_week=?', [available.brain, available.muscle, available.heart, username, week])
 	.then(() => {
 		res.status(200).end()
 	}).catch((err) => {
@@ -270,8 +272,6 @@ app.post('/api/registerAccount', (req, res) => {
 						res.end();
 					})
 				}
-				
-				
 			}
 		)
 	}
@@ -292,14 +292,11 @@ app.post('/api/login', function (req, res) {
 				const salt = row.salt
 				const shad = encryption.sha512(password, salt)
 				if( shad.passwordHash === dbPassword) {
-					const sessionId = req.sessionID
-					sessionAccounts[sessionId] = {}
-					sessionAccounts[sessionId].username = username
-					sessionAccounts[sessionId].campaign_id = row.campaigns_id
-					sessionAccounts[sessionId].week = admin.currentWeek[row.campaigns_id]
+					req.session.username = username
 					res.status(200)
 					req.session.loggedIn = true;
 					req.session.username = username;
+					req.session.campaign_id = row.campaigns_id
 					res.end();
 					return;
 				}
@@ -314,8 +311,6 @@ app.post('/api/logout', (req, res) => {
 	if(req.session.loggedIn) {
 		res.status(200)
 		res.end()
-		const sessionId = req.sessionID
-		delete sessionAccounts[sessionId]
 		req.session.destroy();
 	}
 	

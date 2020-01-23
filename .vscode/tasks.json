@@ -1,0 +1,5 @@
+{
+    "tasks": [
+        {"label": "startClient", "type": "shell", "command": "npm run start"}
+    ]
+}

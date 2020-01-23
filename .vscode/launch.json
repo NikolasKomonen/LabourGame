@@ -1,0 +1,27 @@
+{
+    "version": "0.1.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Server",
+            "program": "${workspaceFolder}/server/index.js",
+            "console": "integratedTerminal",
+        },
+        {
+            "name": "Launch Client",
+            "type": "chrome",
+            "request": "launch",
+            "url": "http://localhost:3000",
+            "webRoot": "${workspaceFolder}/src",
+            
+            
+        },
+    ],
+    "compounds": [
+        {
+            "name": "Client And Server",
+            "configurations": [ "Launch Server", "Launch Client"]
+        }
+    ]
+}

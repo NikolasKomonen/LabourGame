@@ -172,6 +172,7 @@ app.get('/api/getGameFormData', (req, res) => {
 					else {
 						console.log("Last week student game week doesnt exist")
 						res.status(500).send("Please contact administrator")
+						return;
 					}
 					
 					db.run("INSERT INTO user_game_weeks VALUES (?, ?, ?, ?, ?, ?)", [username, week, false, data.available_brain, data.available_muscle, data.available_heart])

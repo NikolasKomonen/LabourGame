@@ -17,6 +17,13 @@
             
             
         },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Do Calculations",
+            "program": "${workspaceFolder}/server/calculations.js",
+            "console": "integratedTerminal",
+        },
     ],
     "compounds": [
         {

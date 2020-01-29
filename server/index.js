@@ -170,7 +170,7 @@ app.get('/api/getGameFormData', (req, res) => {
 						data.available_heart = gameWeek.available_heart+additional_heart
 					}
 					else {
-						console.log("Last week student game week doesnt exist")
+						console.log("Last week student game week doesnt exist with data(Username: ", username, ", LastWeek: ", lastWeek)
 						res.status(500).send("Please contact administrator")
 						return;
 					}

@@ -1,7 +1,7 @@
 const SQL = require('./database/sqliteIndex')
 const path = require('path')
 
-let db = new SQL(path.join(__dirname, 'database/dbFileUpdated.sqlite'));
+let db = new SQL(path.join(__dirname, 'database/dbFileBeforeClass.sqlite'));
 db.startDB()
 
 
@@ -76,18 +76,18 @@ class Calculations {
     }
 
     getThisWeeksCompanies(week) {
-        return this.db.all(`SELECT id, name FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_salary IS NOT null;`, [week])
+        return this.db.all(`SELECT id, name FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_wage IS NOT null;`, [week])
     }
 
     getThisWeeksCompaniesCount(week) {
-        return this.db.get(`SELECT COUNT(*) FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_salary IS NOT null;`, [week])
+        return this.db.get(`SELECT COUNT(*) FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_wage IS NOT null;`, [week])
     }
 
     getTotalCompanyHours(week, companies_id, campaigns_id) {
         return this.db.get('SELECT sum(hours) FROM user_game_selections JOIN (SELECT * FROM accounts WHERE campaigns_id=?) ON username=accounts_username WHERE companies_id=? AND weeks_week=?;', [campaigns_id, companies_id, week])
     }
 
-    getWeekSalary(week, companies_id, campaigns_id) {
+    getWeekWage(week, companies_id, campaigns_id) {
         return this.db.get(`SELECT * FROM company_wage_history WHERE weeks_week=? AND companies_id=? and campaigns_id=?;`, [week, companies_id, campaigns_id])
     }
 
@@ -103,10 +103,10 @@ class Calculations {
         return (hourlyRate*Math.pow(euler, (difference/this.baseline)))
     }
 
-    calculateForCompany(week, companies_id, campaigns_id) {
+    calculateWageForCompany(week, companies_id, campaigns_id) {
         return new Promise((resolve, reject) => {
             let calculations = [
-                this.getWeekSalary(week, companies_id, campaigns_id),
+                this.getWeekWage(week, companies_id, campaigns_id),
                 this.getTotalCompanyHours(week, companies_id, campaigns_id)
             ]
             
@@ -137,11 +137,11 @@ class Calculations {
         })
     }
 
-    calculateHourlyForThisWeek(week, campaigns_id) {
+    getWagesForThisWeek(week, campaigns_id) {
         const lastWeek = week - 1
         return this.getThisWeeksCompanies(lastWeek).then((companies) => {
             return Promise.all(companies.map((row) => {
-                return this.calculateForCompany(lastWeek, row.id, campaigns_id)
+                return this.calculateWageForCompany(lastWeek, row.id, campaigns_id)
             }))
         })
     }
@@ -149,7 +149,7 @@ class Calculations {
     calculateUserScores(week, campaigns_id, fixedEvents, weeklyEvents, strikeEvents, careerBoosts) {
         const lastWeek = week - 1
         return db.all(
-            `SELECT username, campaign_user_hours.name, hours, wage, (hours * wage) profit FROM 
+            `SELECT username, wage, hours, (hours * ?) AS income, totalHours, career FROM 
             (
                 SELECT 
                     username, companies_id, name, hours 
@@ -177,33 +177,33 @@ class Calculations {
                     company_wage_history.weeks_week=?
                 ) AS wage_hist
             ON 
-                campaign_user_hours.companies_id=wage_hist.companies_id`, [campaigns_id, lastWeek, campaigns_id, lastWeek])
+                campaign_user_hours.companies_id=wage_hist.companies_id`, [campaigns_id, lastWeek, campaigns_id, week])
     }
 }
 
 
-// // 0) Set week 1 user profits to 0 (DELETE AFTER FIRST WEEK)
+// // // 0) Set week 1 user profits to 0 (DELETE AFTER FIRST WEEK)
 // const m = new Modifications(db)
 // m.setInitialUserProfitWeeks()
 
-// // 1) Calculate the Hourly Rate for the given week.
-// //    In this case Week=1 is already done (all 0).
-// //    IMPORTANT: Do for each campaign.
+// 1) Calculate the Hourly Rate for the given week.
+//    In this case Week=1 is already done (all 0).
+//    IMPORTANT: Do for each campaign.
 const c = new Calculations(db)
 const campaigns_id = 1;
 const week = 2; 
 
-
-// c.calculateHourlyForThisWeek(week, campaigns_id).then((result) => {
-//     return db.run("BEGIN TRANSACTION;").then(() => {
-//         const updates = result.map(c => {
-//             return db.run("REPLACE INTO company_wage_history VALUES (?, ?, ?, ?)", [c.companies_id, campaigns_id, week, c.hourlyRate])
-//         });
-//         return Promise.all(updates)
-//     }).then(() => {
-//         return db.run("COMMIT;")
-//     })  
-// })
+//3) 
+c.getWagesForThisWeek(week, campaigns_id).then((result) => {
+    return db.run("BEGIN TRANSACTION;").then(() => {
+        const updates = result.map(c => {
+            return db.run("REPLACE INTO company_wage_history VALUES (?, ?, ?, ?)", [c.companies_id, campaigns_id, week, c.hourlyRate])
+        });
+        return Promise.all(updates)
+    }).then(() => {
+        return db.run("COMMIT;")
+    })  
+})
 
 // // 2) Get Modifier Rates (This includes updating them first)
 

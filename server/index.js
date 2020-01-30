@@ -174,7 +174,7 @@ app.get('/api/getGameFormData', (req, res) => {
 						res.status(500).send("Please contact administrator")
 						return;
 					}
-					
+					// Update total resources for the next week
 					db.run("INSERT INTO user_game_weeks VALUES (?, ?, ?, ?, ?, ?)", [username, week, false, data.available_brain, data.available_muscle, data.available_heart])
 					res.send(data)
 				})

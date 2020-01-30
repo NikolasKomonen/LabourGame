@@ -1,33 +1,11 @@
 const SQL = require('./database/sqliteIndex')
 const path = require('path')
 
-let db = new SQL(path.join(__dirname, 'database/dbFileBeforeClass.sqlite'));
+let db = new SQL(path.join(__dirname, 'database/fukWitMe.sqlite'));
 db.startDB()
 
 
 const euler=2.7182818284590452353602874713527
-
-class Modifications {
-    constructor(db) {
-        this.db = db
-    }
-
-    setInitialUserProfitWeeks() {
-        db.all("SELECT username FROM accounts;").then((usernames) => {
-            const t = usernames
-            db.run("BEGIN TRANSACTION;").then(() => {
-                const changes = usernames.map((account) => {
-                    const username = account.username
-                    return db.run("REPLACE INTO user_profit_weeks VALUES (?, ?, ?, ?)", [username, 1, 0, 0])
-                })
-                return Promise.all(changes)
-            }).then(() => {
-                db.run("COMMIT;")
-            })
-        })
-        
-    }
-}
 
 class Calculations {
 
@@ -138,10 +116,9 @@ class Calculations {
     }
 
     getWagesForThisWeek(week, campaigns_id) {
-        const lastWeek = week - 1
-        return this.getThisWeeksCompanies(lastWeek).then((companies) => {
+        return this.getThisWeeksCompanies(week).then((companies) => {
             return Promise.all(companies.map((row) => {
-                return this.calculateWageForCompany(lastWeek, row.id, campaigns_id)
+                return this.calculateWageForCompany(week, row.id, campaigns_id)
             }))
         })
     }
@@ -149,10 +126,10 @@ class Calculations {
     calculateUserScores(week, campaigns_id, fixedEvents, weeklyEvents, strikeEvents, careerBoosts) {
         const lastWeek = week - 1
         return db.all(
-            `SELECT username, wage, hours, (hours * ?) AS income, totalHours, career FROM 
+            `SELECT username, campaign_user_hours.company_name, wage, hours FROM 
             (
                 SELECT 
-                    username, companies_id, name, hours 
+                    username, companies_id, name AS company_name, hours 
                 FROM 
                     accounts
                 JOIN 
@@ -179,46 +156,123 @@ class Calculations {
             ON 
                 campaign_user_hours.companies_id=wage_hist.companies_id`, [campaigns_id, lastWeek, campaigns_id, week])
     }
+
+    updateStrikeTable(week, campaigns_id) {
+        
+        return db.run(`
+            REPLACE INTO user_strike_weeks
+                SELECT
+                    companies_id,
+                    ?,
+                    ?,
+                    sum(selec.strike),
+                    count(*)
+                FROM 
+                    (
+                    SELECT 
+                        companies_id, strike 
+                    FROM 
+                        user_game_selections 
+                    WHERE 
+                        accounts_username 
+                        IN 
+                        (SELECT username FROM accounts WHERE campaigns_id=?)
+                    ) AS selec
+                GROUP BY
+                    selec.companies_id;
+                    
+            `, [campaigns_id, week, campaigns_id])
+            
+            
+        
+    }
+
+    updateCareersTable() {
+        db.run(`
+            INSERT INTO user_career_history VALUES(
+                SELECT * 
+        ) ON CONFLICT DO UPDATE SET `)
+    }
+
+    updateTotalHours(campaigns_id) {
+        return db.run(`
+            REPLACE INTO user_total_company_hours VALUES (
+                SELECT 
+                    accounts_username,
+                    companies_id,
+                    sum(hours)
+                FROM
+                    (SELECT * FROM user_game_selections WHERE accounts_username IN (SELECT * FROM accounts WHERE campaigns_id=?)) AS accs
+                GROUP BY
+                    accs.accounts_username,
+                    accs.companies_id
+                    
+            )
+        
+        `)
+    }
 }
 
 
-// // // 0) Set week 1 user profits to 0 (DELETE AFTER FIRST WEEK)
-// const m = new Modifications(db)
-// m.setInitialUserProfitWeeks()
+// *** START HERE ***
+// Modify these values
+const campaigns_id = 1;
+const week = 2; 
+
+// ** DO NOT MODIFY ANY OF THE FOLLOWING **
 
 // 1) Calculate the Hourly Rate for the given week.
 //    In this case Week=1 is already done (all 0).
 //    IMPORTANT: Do for each campaign.
 const c = new Calculations(db)
-const campaigns_id = 1;
-const week = 2; 
+const lastWeek = week - 1;
 
-//3) 
-c.getWagesForThisWeek(week, campaigns_id).then((result) => {
+c.getWagesForThisWeek(lastWeek, campaigns_id) // JSON's of this week's wages
+.then((result) => {
+    // Inserting the wages into the DB
     return db.run("BEGIN TRANSACTION;").then(() => {
         const updates = result.map(c => {
             return db.run("REPLACE INTO company_wage_history VALUES (?, ?, ?, ?)", [c.companies_id, campaigns_id, week, c.hourlyRate])
         });
-        return Promise.all(updates)
-    }).then(() => {
-        return db.run("COMMIT;")
-    })  
+        return Promise.all(updates).then(() => {
+            return db.run("COMMIT;")
+        })
+    })
+})
+.then(() => { // Updated the DB user_strike_weeks table
+    return Promise.all([
+        c.updateStrikeTable(lastWeek, campaigns_id)
+        // c.updateTotalHours(campaigns_id)
+        // .then(() => {
+        //     c.updateCareersTable(campaigns_id, week)
+        // })
+    ])
+     
+})
+.then(() => {
+    // // 2) Get Modifier Rates (This includes updating them first)
+    return Promise.all([
+    // // 2a) Fixed Events
+    // const fixedEvents={id: {description: "", type: 1||2, data: 0.2||-0.2, company_id: 55}}
+    db.all("SELECT companies_id, description, event_types_id, event_data FROM fixed_event_cards WHERE weeks_week=?;", [week]),
+    // // 2b) Event Cards
+    // const weeklyEvents={id: {description: "", type: 1||2, data: 0.2||-0.2, company_id: 55}}
+    db.get("SELECT companies_id, description, event_types_id, event_data FROM event_cards ORDER BY RANDOM() LIMIT 1;"),
+    // // 2c) Company Strike
+    // const strikeEvents={company_id: {workers_striked: 55, total_workers: 55}}
+    db.all("SELECT companies_id, workers_striked, total_workers FROM user_strike_weeks WHERE campaigns_id=? and weeks_week=?", [campaigns_id, lastWeek])
+    
+    // // 2d) Career Boost
+    // const careerBoosts={username: {company_id: isSupervisor}}
+
+    ])
+})
+.then((data) => {
+    // 3) Calculate each individual user's score
+    c.calculateUserScores(week, campaigns_id, data[0], data[1], data[2], null).then((res) => {
+        console.log(res)
+    })
 })
 
-// // 2) Get Modifier Rates (This includes updating them first)
 
-// // 2a) Fixed Events
-// const fixedEvents={id: {description: "", type: 1||2, data: 0.2||-0.2, company_id: 55}}
-// // 2b) Event Cards
-// const weeklyEvents={id: {description: "", type: 1||2, data: 0.2||-0.2, company_id: 55}}
-// // 2c) Company Strike
-// const strikeEvents={company_id: {workersOnStrike: 55, totalWorkers: 55}}
-// // 2d) Career Boost
-// const careerBoosts={username: {company_id: isSupervisor}}
-
-
-// 3) Calculate each individual user's score
-c.calculateUserScores(week, campaigns_id, null, null, null, null).then((res) => {
-    console.log(res)
-})
 

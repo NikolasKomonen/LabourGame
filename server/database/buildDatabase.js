@@ -48,6 +48,21 @@ function createTables() {
                     week integer PRIMARY KEY
                 )`
 
+        const user_strike_weeks = 
+                `
+                CREATE TABLE IF NOT EXISTS user_strike_weeks (
+                    companies_id integer,
+                    campaigns_id integer,
+                    weeks_week integer,
+                    workers_striked integer,
+                    total_workers integer,
+                    PRIMARY KEY (companies_id, campaigns_id, weeks_week),
+                    FOREIGN KEY (campaigns_id) REFERENCES campaigns(id),
+                    FOREIGN KEY (companies_id) REFERENCES companies(id),
+                    FOREIGN KEY (weeks_week) REFERENCES weeks(week)
+                )
+                `
+
         const user_game_selections =
             `CREATE TABLE IF NOT EXISTS user_game_selections (
                     accounts_username varchar(40),
@@ -135,13 +150,23 @@ function createTables() {
         const user_career_history =
             `CREATE TABLE IF NOT EXISTS user_career_history (
                     accounts_username text,
-                    companies_id,
-                    weeks_week,
+                    companies_id integer,
+                    weeks_week integer,
                     is_supervisor binary,
                     PRIMARY KEY (accounts_username, companies_id, weeks_week),
                     FOREIGN KEY (accounts_username) REFERENCES accounts(username) ON DELETE CASCADE ON UPDATE CASCADE,
                     FOREIGN KEY (companies_id) REFERENCES companies(id),
                     FOREIGN KEY (weeks_week) REFERENCES weeks(week)
+                )`
+
+        const user_total_company_hours = 
+                `CREATE TABLE IF NOT EXISTS user_total_company_hours (
+                    accounts_username text,
+                    companies_id integer,
+                    total_hours integer,
+                    PRIMARY KEY (accounts_username, companies_id),
+                    FOREIGN KEY (accounts_username) REFERENCES accounts(username) ON DELETE CASCADE ON UPDATE CASCADE,
+                    FOREIGN KEY (companies_id) REFERENCES companies(id),
                 )`
 
 
@@ -159,7 +184,9 @@ function createTables() {
                 db.run(fixed_event_cards),
                 db.run(user_career_history),
                 db.run(event_card_history),
-                db.run(company_wage_history)
+                db.run(company_wage_history),
+                db.run(user_strike_weeks),
+                db.run(user_total_company_hours)
             ])
             .then(() => resolve())
             .catch((reject) => {

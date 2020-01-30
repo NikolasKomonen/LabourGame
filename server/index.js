@@ -87,6 +87,9 @@ app.get('/api/getGameFormData', (req, res) => {
 			}
 			
 		});
+
+		// all_companies is an accumulation of all row data per company
+		// that includes multipliers as well as the users data (if they haven't started yet then it is default values)
 		const all_companies = ordered_companies.concat(ordered_resources)
 		data.rows = all_companies
 		const profitsRow = queries[2]
@@ -101,29 +104,30 @@ app.get('/api/getGameFormData', (req, res) => {
 		const firstRow = queries[0]
 		const startingPoints = 30
 		data.distributablePoints = startingPoints
-		if(firstRow) {
+		if(firstRow) { // this week's game session data was already created
 			data.submitted = firstRow.submitted > 0
 			data.available_brain = firstRow.available_brain
 			data.available_muscle = firstRow.available_muscle
 			data.available_heart = firstRow.available_heart
-			
 			res.send(data)
 		}
 		else { // student row for this weeks game doesnt exist yet
+			// The following creates the only necessary user specific data for a user to play,
+			// (the data that holds available resources) everything else should have been generated beforehand
+			// somewhere else
 			data.submitted = false
 			const lastWeek = week - 1
-			if(lastWeek === 0) { // We are on week 1
-				
+			if(week === 1) {
+				// Initialize the user_game_week with the initial values
 				db.run("INSERT INTO user_game_weeks VALUES (?, ?, ?, ?, ?, ?)", [username, week, false, startingPoints, startingPoints, startingPoints])
 				data.total_profit = 0
 				data.week_profit = 0
 				data.available_brain = startingPoints
 				data.available_muscle = startingPoints
 				data.available_heart = startingPoints
-				
 				res.send(data)
 			}
-			else {
+			else { // On week 2 and onward
 				Promise.all(
 					[
 						db.all(`SELECT 
@@ -162,7 +166,8 @@ app.get('/api/getGameFormData', (req, res) => {
 							additional_brain = row.hours
 						}
 					});
-
+					// Figures out the Training done, and applies it to the new
+					// available resources for this week
 					const gameWeek = queries[1]
 					if(gameWeek) {
 						data.available_brain = gameWeek.available_brain+additional_brain
@@ -174,8 +179,15 @@ app.get('/api/getGameFormData', (req, res) => {
 						res.status(500).send("Please contact administrator")
 						return;
 					}
-					// Update total resources for the next week
-					db.run("INSERT INTO user_game_weeks VALUES (?, ?, ?, ?, ?, ?)", [username, week, false, data.available_brain, data.available_muscle, data.available_heart])
+					// Update total resources for this week, this is redundant protection since
+					// the last weeks calculation should calculate this already
+					db.run(`
+						INSERT OR IGNORE INTO 
+							user_game_weeks 
+						VALUES 
+							(?, ?, ?, ?, ?, ?) 
+						`
+						, [username, week, false, data.available_brain, data.available_muscle, data.available_heart])
 					res.send(data)
 				})
 			}

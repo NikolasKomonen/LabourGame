@@ -66,7 +66,7 @@ class Calculations {
     }
 
     getWeekWage(week, companies_id, campaigns_id) {
-        return this.db.get(`SELECT * FROM company_wage_history WHERE weeks_week=? AND companies_id=? and campaigns_id=?;`, [week, companies_id, campaigns_id])
+        return this.db.get(`SELECT max(weeks_week), wage FROM company_wage_history WHERE companies_id=? AND campaigns_id=? AND weeks_week<=? GROUP BY companies_id AND campaigns_id;`, [companies_id, campaigns_id, week])
     }
 
     getDifference(week, companies_id, campaigns_id) {
@@ -144,16 +144,13 @@ class Calculations {
                 campaign_user_hours 
             JOIN 
                 (
-                SELECT 
-                    companies_id, wage 
-                FROM company_wage_history 
-                WHERE 
-                    company_wage_history.campaigns_id=?
-                    AND
-                    company_wage_history.weeks_week=?
+                    SELECT companies_id, wage, max(weeks_week) FROM company_wage_history WHERE company_wage_history.campaigns_id=? AND company_wage_history.weeks_week<=? GROUP BY companies_id
                 ) AS wage_hist
             ON 
                 campaign_user_hours.companies_id=wage_hist.companies_id;`, [campaigns_id, lastWeek, campaigns_id, week])
+        .then((rows) => {
+            
+        })
     }
 
     updateStrikeTable(week, campaigns_id) {
@@ -454,7 +451,9 @@ class Calculations {
     
 }
 
-const c = new Calculations(db);
-const campaigns_id = 2
 
-c.calculateUpToAndIncludingWeek(campaigns_id, 2)
+const c = new Calculations(db);
+const campaigns_id = 1
+const weekForWages = 2
+
+c.calculateUpToAndIncludingWeek(campaigns_id, weekForWages)

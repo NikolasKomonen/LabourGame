@@ -15,6 +15,7 @@ function dropTables() {
         DROP TABLE IF EXISTS 'user_career_history';
         DROP TABLE IF EXISTS 'user_profit_weeks';
         DROP TABLE IF EXISTS 'event_card_history';
+        DROP TABLE IF EXISTS 'user_strike_weeks';
         COMMIT;
     `)
 }

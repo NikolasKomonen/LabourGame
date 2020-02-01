@@ -145,64 +145,47 @@ class GameForm extends React.Component {
         const isEmptyText = newHours.length === 0
         let parsedHours = isEmptyText ? 0 : parseInt(newHours)
         const constants = this.state["c_" + companyID + "_constants"]
-        const companyRow = "c_" + companyID
-        const oldRow = this.state[companyRow]
-        const newRow = 
-                    {   
-                        hours: parsedHours,
-                        isBlankHours: isEmptyText,
-                        brain: (parsedHours * constants.brainMultiplier), 
-                        muscle: (parsedHours * constants.muscleMultiplier), 
-                        heart: (parsedHours * constants.heartMultiplier),
-                        strike: oldRow.strike
-                    }
-        const newState = {}
-        newState[companyRow] = newRow
-        
-        this.setState(newState)
-        this.updateTotalResults(
-                        newRow.hours - oldRow.hours,
-                        newRow.brain - oldRow.brain,
-                        newRow.muscle - oldRow.muscle,
-                        newRow.heart - oldRow.heart
-        )
-        this.startRowUpdate(newRow, companyID)
-    }
-
-    updateTotalResults(hoursDelta, brainDelta, muscleDelta, heartDelta) {
-        const oldTotals = this.state.resultTotals
-        const newTotals = 
-                    {
-                        hours: oldTotals.hours + hoursDelta,
-                        brain: oldTotals.brain + brainDelta,
-                        muscle: oldTotals.muscle + muscleDelta,
-                        heart: oldTotals.heart + heartDelta
-                    }
-        this.setState({resultTotals: newTotals})
+        this.setState((prevState) => {
+            const companyRow = "c_" + companyID
+            const oldRow = prevState[companyRow]
+            const newRow = 
+                        {   
+                            hours: parsedHours,
+                            isBlankHours: isEmptyText,
+                            brain: (parsedHours * constants.brainMultiplier), 
+                            muscle: (parsedHours * constants.muscleMultiplier), 
+                            heart: (parsedHours * constants.heartMultiplier),
+                            strike: oldRow.strike
+                        }
+            const newState = {}
+            newState[companyRow] = newRow
+            
+            const oldTotals = prevState.resultTotals
+            const newTotals = 
+                        {
+                            hours: oldTotals.hours +  newRow.hours - oldRow.hours,
+                            brain: oldTotals.brain + newRow.brain - oldRow.brain,
+                            muscle: oldTotals.muscle + newRow.muscle - oldRow.muscle,
+                            heart: oldTotals.heart + newRow.heart - oldRow.heart
+                        }
+            newState.resultTotals = newTotals
+            this.startRowUpdateToServer(newRow, companyID)
+            return newState
+        })
     }
 
     updateCompanyStrike(strike, companyID) {
-        const newState = {}
         const companyRow = "c_" + companyID
-        let oldRow;
-        const pendingRow = this.pendingRows[companyID]
-        if(pendingRow) {
-            oldRow = pendingRow
-        }
-        else {
-            oldRow = this.state[companyRow]
-        }
-        const newRow = { ...oldRow }
-        newRow.strike = strike
-        newState[companyRow] = newRow
-        this.setState(newState)
-        this.startRowUpdate(newRow, companyID)
-        
-        
+        this.setState((prevState) => {
+            const prevRow = { ...prevState[companyRow] }
+            prevRow.strike = strike
+            this.startRowUpdateToServer(prevRow, companyID)
+            const newRow = { [companyRow]: prevRow}
+            return newRow
+        })
     }
 
-    startRowUpdate(newRow, companyID) {
-        
+    startRowUpdateToServer(newRow, companyID) {
         if(this.timer) {
             clearTimeout(this.timer)
             this.sentStack--;

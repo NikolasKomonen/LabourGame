@@ -12,9 +12,7 @@ function dropTables() {
         DROP TABLE IF EXISTS 'event_types';
         DROP TABLE IF EXISTS 'fixed_event_cards';
         DROP TABLE IF EXISTS 'weekly_excluded_companies';
-        DROP TABLE IF EXISTS 'user_career_history';
         DROP TABLE IF EXISTS 'user_profit_weeks';
-        DROP TABLE IF EXISTS 'event_card_history';
         DROP TABLE IF EXISTS 'user_strike_weeks';
         COMMIT;
     `)

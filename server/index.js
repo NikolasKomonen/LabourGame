@@ -21,6 +21,9 @@ app.use(express.json())
 app.use(express.static(path.join(__dirname,'../build')))
 
 app.get('/api/getGameFormData', (req, res) => {
+	if(!req.session.loggedIn) {
+		return;
+	}
 	const data = {}
 	const username = req.session.username
 	const week = req.body.week == null ? admin.currentWeek[req.session.campaign_id] : req.body.week
@@ -196,18 +199,19 @@ app.get('/api/getGameFormData', (req, res) => {
 })
 
 app.post('/api/submitGameForm', (req, res) => {
-	const username = req.session.username
-	const week = req.body.week
-	db.run(`UPDATE user_game_weeks SET submitted=1 WHERE accounts_username=? AND weeks_week=?`, [username, week]).then(() => {
-		res.status(200).end()
-	})
+	handleSelections(req, res, "submit")
 }) 
 
-app.post('/api/updateSelection', (req, res) => {
-	const selection = req.body // { week, update : {COMPANY_ID: {hours, strike}, ...}}
+app.post('/api/saveGameForm', (req, res) => {
+	handleSelections(req, res, "save")
+}) 
+
+const handleSelections = (req, res, submissionType) => {
+	const selection = req.body // { week, update : {COMPANY_ID: {hours, strike}, ...}, totalResources}
 	const username = req.session.username
 	const updates = selection.update
 	const week = selection.week
+	const resources = selection.totalResources
 	db.run(`BEGIN TRANSACTION;`).then(() => {
 		const queries = Object.keys(updates).map((id) => {
 			const update = updates[id]
@@ -233,6 +237,12 @@ app.post('/api/updateSelection', (req, res) => {
 			}
 			return null;
 		})
+		if(week === 1) {
+			queries.push(db.run('UPDATE user_game_weeks SET available_brain=?, available_muscle=?, available_heart=? WHERE accounts_username=? AND weeks_week=?', [resources.brain, resources.muscle, resources.heart, username, week]))
+		}
+		if(submissionType === "save") {
+			queries.push(db.run(`UPDATE user_game_weeks SET submitted=1 WHERE accounts_username=? AND weeks_week=?`, [username, week]))
+		}
 		Promise.all(queries).then(() => {
 			return db.run(`COMMIT;`)
 		})
@@ -240,20 +250,7 @@ app.post('/api/updateSelection', (req, res) => {
 			res.status(200).send()
 		})
 	})
-})
-
-app.post('/api/updateAvailablePoints', (req, res) => {
-	const username = req.session.username
-	const data = req.body
-	const week = data.week
-	const available = data.available
-	db.run('UPDATE user_game_weeks SET available_brain=?, available_muscle=?, available_heart=? WHERE accounts_username=? AND weeks_week=?', [available.brain, available.muscle, available.heart, username, week])
-	.then(() => {
-		res.status(200).end()
-	}).catch((err) => {
-		res.status(500).send(err)
-	})
-})
+}
 
 app.get('/api/getAccountRegistrationData', (req, res) => {
 	const data = {}
@@ -304,13 +301,11 @@ app.post('/api/login', function (req, res) {
 				const dbPassword = row.password
 				const salt = row.salt
 				const shad = encryption.sha512(password, salt)
-				if( shad.passwordHash === dbPassword) {
-					req.session.username = username
-					res.status(200)
+				if(shad.passwordHash === dbPassword) {
 					req.session.loggedIn = true;
 					req.session.username = username;
 					req.session.campaign_id = row.campaigns_id
-					res.end();
+					res.status(200).end()
 					return;
 				}
 				res.status(422)
@@ -322,9 +317,12 @@ app.post('/api/login', function (req, res) {
 
 app.post('/api/logout', (req, res) => {
 	if(req.session.loggedIn) {
-		res.status(200)
-		res.end()
-		req.session.destroy();
+		req.session.destroy((err) => {
+			if(!err) {
+				res.status(200)
+				res.end()
+			}
+		});
 	}
 	
 })

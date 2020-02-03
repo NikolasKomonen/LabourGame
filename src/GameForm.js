@@ -47,6 +47,7 @@ class GameForm extends React.Component {
         this.updateCompanyHours = this.updateCompanyHours.bind(this);
         this.state = {
             isLoaded: false,
+            savedMostRecent: true,
             submitted: false,
             companyIDs: [],
             saveStatus: this.getLastSavedMessage(),
@@ -169,7 +170,8 @@ class GameForm extends React.Component {
                             heart: oldTotals.heart + newRow.heart - oldRow.heart
                         }
             newState.resultTotals = newTotals
-            this.startRowUpdateToServer(newRow, companyID)
+            newState.savedMostRecent = false
+            //this.startRowUpdateToServer(newRow, companyID) // realtime saves
             return newState
         })
     }
@@ -179,52 +181,54 @@ class GameForm extends React.Component {
         this.setState((prevState) => {
             const prevRow = { ...prevState[companyRow] }
             prevRow.strike = strike
-            this.startRowUpdateToServer(prevRow, companyID)
-            const newRow = { [companyRow]: prevRow}
+            //this.startRowUpdateToServer(prevRow, companyID) // realtime saves
+            const newRow = { [companyRow]: prevRow, savedMostRecent: false}
             return newRow
         })
     }
 
-    startRowUpdateToServer(newRow, companyID) {
-        if(this.timer) {
-            clearTimeout(this.timer)
-            this.sentStack--;
-        }
-        this.pendingRows[companyID] = {hours: newRow.hours, strike: newRow.strike}
-        this.timer = setTimeout(() => {this.sendBatchedUpdate()}, 3000)
-        this.sentStack++;
-        this.setState({saveStatus: this.savingMessage})
-    }
+    // // This is for realtime saves
+    // startRowUpdateToServer(newRow, companyID) {
+    //     if(this.timer) {
+    //         clearTimeout(this.timer)
+    //         this.sentStack--;
+    //     }
+    //     this.pendingRows[companyID] = {hours: newRow.hours, strike: newRow.strike}
+    //     this.timer = setTimeout(() => {this.sendBatchedUpdate()}, 3000)
+    //     this.sentStack++;
+    //     this.setState({saveStatus: this.savingMessage})
+    // }
 
-    sendBatchedUpdate() {
-        if(Object.keys(this.pendingRows).length < 1) {
-            return;
-        }
-        const data = {
-            update: this.pendingRows, // {COMPANY_ID: {hours: ... , strike: ...}, ...}
-            week: this.state.week,
-        }
-        console.log("Sending hours: ", data)
-        fetch('/api/updateSelection', {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        }).then((res) => {
-            this.sentStack--
-            const status = res.status
-            if (status === 200) {
-                this.pendingRows = {}
-                if(this.sentStack === 0) {
-                    const newState = {}
-                    newState.saveStatus = this.getLastSavedMessage();
-                    this.setState(newState)
-                }
-            }
-            this.timer = null
-        })
-    }
+    // // This is for realtime saves
+    // sendBatchedUpdate() {
+    //     if(Object.keys(this.pendingRows).length < 1) {
+    //         return;
+    //     }
+    //     const data = {
+    //         update: this.pendingRows, // {COMPANY_ID: {hours: ... , strike: ...}, ...}
+    //         week: this.state.week,
+    //     }
+    //     console.log("Sending hours: ", data)
+    //     fetch('/api/updateSelection', {
+    //         method: 'POST',
+    //         body: JSON.stringify(data),
+    //         headers: {
+    //             'Content-Type': 'application/json'
+    //         }
+    //     }).then((res) => {
+    //         this.sentStack--
+    //         const status = res.status
+    //         if (status === 200) {
+    //             this.pendingRows = {}
+    //             if(this.sentStack === 0) {
+    //                 const newState = {}
+    //                 newState.saveStatus = this.getLastSavedMessage();
+    //                 this.setState(newState)
+    //             }
+    //         }
+    //         this.timer = null
+    //     })
+    // }
 
     getLastSavedMessage() {
         return "Last Saved " + new Date().toLocaleTimeString()
@@ -264,7 +268,8 @@ class GameForm extends React.Component {
             const newAvailable = { ...this.state.totalAvailableResources}
             newAvailable[part] += 1
             newState.totalAvailableResources = newAvailable
-            this.startAvailablePointsUpdate(newState.totalAvailableResources)
+            newState.savedMostRecent = false
+            //this.startAvailablePointsUpdate(newState.totalAvailableResources) // realtime saves
             this.setState(newState)
         }
     }
@@ -276,86 +281,125 @@ class GameForm extends React.Component {
             const newAvailable = { ...this.state.totalAvailableResources}
             newAvailable[part] -= 1
             newState.totalAvailableResources = newAvailable
-            this.startAvailablePointsUpdate(newState.totalAvailableResources)
+            newState.savedMostRecent = false
+            //this.startAvailablePointsUpdate(newState.totalAvailableResources) // realtime saves
             this.setState(newState)
         }
     }
 
-    startAvailablePointsUpdate(totalAvailableResources) {
-        if(this.resourcesTimer) {
-            clearTimeout(this.resourcesTimer)
-            this.sentStack--;
-        }
-        this.pendingAvailableResources = totalAvailableResources
-        this.resourcesTimer = setTimeout(() => {this.sendBatchedAvailablePointsUpdate()}, 5000)
-        this.sentStack++;
-        this.setState({saveStatus: this.savingMessage})
-    }
+    // startAvailablePointsUpdate(totalAvailableResources) {
+    //     if(this.resourcesTimer) {
+    //         clearTimeout(this.resourcesTimer)
+    //         this.sentStack--;
+    //     }
+    //     this.pendingAvailableResources = totalAvailableResources
+    //     this.resourcesTimer = setTimeout(() => {this.sendBatchedAvailablePointsUpdate()}, 5000)
+    //     this.sentStack++;
+    //     this.setState({saveStatus: this.savingMessage})
+    // }
 
-    sendBatchedAvailablePointsUpdate() {
-        if(Object.keys(this.pendingAvailableResources).length < 1) {
-            return;
-        }
-        const data = {
-            week: this.state.week,
-            available: this.pendingAvailableResources
-        }
-        fetch('/api/updateAvailablePoints', {
-            method: 'POST',
-            body: JSON.stringify(data),
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        }).then((res) => {
-            this.sentStack--
-            this.pendingAvailableResources = {}
-            if(this.sentStack === 0) {
-                if(res.status === 200) {
-                    const saveMessage = this.getLastSavedMessage()
-                    const newState = {}
-                    newState.saveStatus = saveMessage
-                    this.setState(newState)
-                } 
-            }
-            this.resourcesTimer = null
-        })
-    }
+    // sendBatchedAvailablePointsUpdate() {
+    //     if(Object.keys(this.pendingAvailableResources).length < 1) {
+    //         return;
+    //     }
+    //     const data = {
+    //         week: this.state.week,
+    //         available: this.pendingAvailableResources
+    //     }
+    //     fetch('/api/updateAvailablePoints', {
+    //         method: 'POST',
+    //         body: JSON.stringify(data),
+    //         headers: {
+    //             'Content-Type': 'application/json'
+    //         }
+    //     }).then((res) => {
+    //         this.sentStack--
+    //         this.pendingAvailableResources = {}
+    //         if(this.sentStack === 0) {
+    //             if(res.status === 200) {
+    //                 const saveMessage = this.getLastSavedMessage()
+    //                 const newState = {}
+    //                 newState.saveStatus = saveMessage
+    //                 this.setState(newState)
+    //             } 
+    //         }
+    //         this.resourcesTimer = null
+    //     })
+    // }
     
     submitSelection() {
-        let canSubmit = true;
-        if((this.state.totalAvailableResources.brain - this.state.resultTotals.brain) < 0) {
-            canSubmit = false;
-        }
-        if(canSubmit && (this.state.totalAvailableResources.muscle - this.state.resultTotals.muscle) < 0) {
-            canSubmit = false;
-        }
-        if(canSubmit && (this.state.totalAvailableResources.heart - this.state.resultTotals.heart) < 0) {
-            canSubmit = false;
-        }
+        this.sendAllInfo("submit")
+    }
 
-        if(!canSubmit) {
+    saveSelection() {
+        this.sendAllInfo("save")
+    }
+
+    sendAllInfo(submissionType) {
+        if(submissionType === "submit") {
+            let canSubmit = true;
+            if((this.state.totalAvailableResources.brain - this.state.resultTotals.brain) < 0) {
+                canSubmit = false;
+            }
+            if(canSubmit && (this.state.totalAvailableResources.muscle - this.state.resultTotals.muscle) < 0) {
+                canSubmit = false;
+            }
+            if(canSubmit && (this.state.totalAvailableResources.heart - this.state.resultTotals.heart) < 0) {
+                canSubmit = false;
+            }
+
+            if(!canSubmit) {
+                return;
+            }
+        }
+        
+        // // Send all pending changes to server
+        // clearTimeout(this.timer)
+        // clearTimeout(this.resourcesTimer)
+        // this.sendBatchedUpdate()
+        // this.sendBatchedAvailablePointsUpdate()
+
+        let api;
+        if(submissionType === "save") {
+            api = '/api/saveGameForm'
+        }
+        else if(submissionType === "submit") {
+            api = '/api/submitGameForm'
+        }
+        else {
             return;
         }
-
-        // Send all pending changes to server
-        clearTimeout(this.timer)
-        clearTimeout(this.resourcesTimer)
-        this.sendBatchedUpdate()
-        this.sendBatchedAvailablePointsUpdate()
-        
-        fetch('/api/submitGameForm', {
+        const rows = this.collectSubmissionData()
+        const resources = this.collectResourcePointsData()
+        fetch(api, {
             method: 'POST',
-            body: JSON.stringify({week: this.state.week}),
+            body: JSON.stringify({update: rows, week: this.state.week, totalResources: resources}),
             headers: {
                 'Content-Type': 'application/json'
             }}).then((res) => {
             if(res.status === 200) {
                 const newState = {}
-                newState.submitted = true
-                newState.saveStatus = "Submitted"
+                if(submissionType === "submit") {
+                    newState.submitted = true
+                }
+                newState.savedMostRecent = true
+                //newState.saveStatus = "Submitted"
                 this.setState(newState)
             }
         })
+    }
+
+    collectSubmissionData() {
+        const data = {}
+        this.state.companyIDs.forEach(id => {
+            const row = this.state["c_" + id]
+            data[id] = {hours: row.hours, strike: row.strike}
+        })
+        return data
+    }
+
+    collectResourcePointsData() {
+        return { ...this.state.totalAvailableResources }
     }
 
     render() {
@@ -397,14 +441,22 @@ class GameForm extends React.Component {
                             </Box>
                         </Box>
                         <Box className="col-md-4 col-12" pr={0} display="flex" justifyContent="center">
+                            {/* This is for realtime saves
                             <Box mt="auto" className="col-6" pt={3} pr={0} >
                                 <Typography id="game-saved-status">
                                     {this.state.saveStatus}
                                 </Typography>
+                            </Box> */}
+                            <Box mt="auto" className="col-6"  display="flex" justifyContent="flex-end" pr={0} >
+                                <Button id="game-submit-button" variant="contained" color="primary" disabled={this.state.savedMostRecent} onClick={() => {
+                                    this.saveSelection()
+                                }}>
+                                    Save Choices
+                                </Button>
                             </Box>
 
                             <Box mt="auto" className="col-6"  display="flex" justifyContent="flex-end" pr={0} >
-                                <Button id="game-submit-button" variant="contained" color="primary" disabled={this.state.submitted} onClick={() => {
+                                <Button id="game-submit-button" variant="contained" color="secondary" disabled={this.state.submitted} onClick={() => {
                                     this.submitSelection()
                                 }}>
                                     Submit

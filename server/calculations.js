@@ -23,7 +23,8 @@ class Calculations {
            this.calculateTotalHours(week, campaigns_id),
            this.getThisWeeksCompaniesCount(week)
        ]).then((data) => {
-           const totalHours = data[0]["sum(hours)"]
+           const sumHours = data[0]["sum(hours)"]
+           const totalHours = sumHours == null ? 0 : sumHours
            const companiesCount = data[1]["COUNT(*)"]
            this.baseline = totalHours/companiesCount // TODO: this is wrong
        })
@@ -95,7 +96,8 @@ class Calculations {
             Promise.all(calculations).then((data) => {
                 const hourlyRate = data[0].wage
                 const baseline = this.baseline
-                const difference = baseline - (data[1]["sum(hours)"])
+                const totalCompanyHours = data[1]["sum(hours)"]
+                const difference = baseline - (totalCompanyHours == null ? 0 : totalCompanyHours)
                 let nextWeekHourlyRate = this.calculateHourlyRate(hourlyRate, difference)
                 if(nextWeekHourlyRate > hourlyRate) {
                     const maxLimit = hourlyRate * 1.2
@@ -114,7 +116,7 @@ class Calculations {
         })
     }
 
-    getWagesForThisWeek(week, campaigns_id) {
+    calculateWagesForWeek(week, campaigns_id) {
         return this.getThisWeeksCompanies(week).then((companies) => {
             return Promise.all(companies.map((row) => {
                 return this.calculateWageForCompany(week, row.id, campaigns_id)
@@ -148,9 +150,7 @@ class Calculations {
                 ) AS wage_hist
             ON 
                 campaign_user_hours.companies_id=wage_hist.companies_id;`, [campaigns_id, lastWeek, campaigns_id, week])
-        .then((rows) => {
-            
-        })
+        
     }
 
     updateStrikeTable(week, campaigns_id) {
@@ -244,9 +244,6 @@ class Calculations {
                     tohist.accounts_username=selec.accounts_username
                     AND
                     tohist.companies_id=selec.companies_id
-                    
-                
-                
                 `, [campaigns_id, lastWeek])
         .then((rows) => {
             rows.forEach((row) => {
@@ -260,8 +257,6 @@ class Calculations {
                     return;
                 }
 
-                
-                
                 const totalHours = row.total_hours
                 if(totalHours < row.regular_hours) { // is Nothing
                     return;
@@ -361,7 +356,7 @@ class Calculations {
         
         const lastWeek = week - 1;
 
-        return this.getWagesForThisWeek(lastWeek, campaigns_id) // JSON's of this week's wages
+        return this.calculateWagesForWeek(lastWeek, campaigns_id) // JSON's of this week's wages
         .then((result) => {
             // Inserting the wages into the DB
             return db.run("BEGIN TRANSACTION;").then(() => {
@@ -417,35 +412,36 @@ class Calculations {
         .then((data) => {
             // 3) Calculate each individual user's score
             return this.calculateUserScores(week, campaigns_id, data[0], data[1], data[2], null).then((res) => {
-                const all = {}
-                res.forEach(row => {
+                console.log(res)
+                // const all = {}
+                // res.forEach(row => {
                     
-                    if(all[row.username] == null) {
-                        all[row.username] = 0
-                    }
-                    all[row.username]+=Math.round((row.wage*row.hours) * 100) / 100
-                })
-                return all
+                //     if(all[row.username] == null) {
+                //         all[row.username] = 0
+                //     }
+                //     all[row.username]+=Math.round((row.wage*row.hours) * 100) / 100
+                // })
+                // return all
             })
         })
-        .then((all) => {
-            return db.all("SELECT username FROM accounts WHERE campaigns_id=?", [campaigns_id]).then((users) => {
-                const final = []
+        // .then((all) => {
+        //     return db.all("SELECT username FROM accounts WHERE campaigns_id=?", [campaigns_id]).then((users) => {
+        //         const final = []
                 
-                users.forEach(user => {
-                    const username = user.username
-                    let profit = all[username]
-                    if(!profit) {
-                        profit = 0
-                    }
-                    final.push({user: username, profit: profit})
-                })
+        //         users.forEach(user => {
+        //             const username = user.username
+        //             let profit = all[username]
+        //             if(!profit) {
+        //                 profit = 0
+        //             }
+        //             final.push({user: username, profit: profit})
+        //         })
                 
                 
-                console.log(final)
-            })
+        //         console.log(final)
+        //     })
             
-        })
+        // })
     }
 
     
@@ -453,7 +449,7 @@ class Calculations {
 
 
 const c = new Calculations(db);
-const campaigns_id = 1
+const campaigns_id = 3
 const weekForWages = 2
 
 c.calculateUpToAndIncludingWeek(campaigns_id, weekForWages)

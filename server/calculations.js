@@ -1,5 +1,7 @@
 const SQL = require('./database/sqliteIndex')
 const path = require('path')
+const {parse} = require('json2csv')
+const fs = require('fs')
 
 let db = new SQL(path.join(__dirname, 'database/dbFile.sqlite'));
 db.startDB()
@@ -55,7 +57,7 @@ class Calculations {
     }
 
     getThisWeeksCompanies(week) {
-        return this.db.all(`SELECT id, name FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_wage IS NOT null;`, [week])
+        return this.db.all(`SELECT id, name FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_wage IS NOT null ORDER BY name ASC;`, [week])
     }
 
     getThisWeeksCompaniesCount(week) {
@@ -124,33 +126,83 @@ class Calculations {
         })
     }
 
-    calculateUserScores(week, campaigns_id, fixedEvents, weeklyEvents, strikeEvents, careerBoosts) {
+    getAllPartialUserResults(week, campaigns_id) {
         const lastWeek = week - 1
         return db.all(
-            `SELECT username, campaign_user_hours.company_name, wage, hours FROM 
-            (
-                SELECT 
-                    username, companies_id, name AS company_name, hours 
-                FROM 
-                    accounts
-                JOIN 
-                    (SELECT * FROM user_game_selections JOIN companies ON user_game_selections.companies_id=companies.id) AS selec
-                ON 
-                    accounts.username=selec.accounts_username
-                WHERE
-                    accounts.campaigns_id=?
-                    AND
-                    selec.weeks_week=?
-            ) 
-            AS 
-                campaign_user_hours 
-            JOIN 
+            `
+            SELECT 
+                username, user_comp.id AS id, COALESCE(strike, 0) AS strike, name, wage, COALESCE(hours, 0) AS hours, 0 AS pay, COALESCE(total_hours, 0) AS total_hours 
+            FROM 
+                (SELECT username, name, id FROM 
+                    (SELECT id, name FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_wage IS NOT null) AS week_companies
+                    LEFT JOIN 
+                    (SELECT username FROM accounts WHERE campaigns_id=?)) 
+                    AS user_comp
+            LEFT JOIN
+                (SELECT * FROM user_game_selections WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?)) AS selec
+            ON
+                user_comp.username=selec.accounts_username
+                AND
+                user_comp.id=selec.companies_id
+            LEFT join
                 (
-                    SELECT companies_id, wage, max(weeks_week) FROM company_wage_history WHERE company_wage_history.campaigns_id=? AND company_wage_history.weeks_week<=? GROUP BY companies_id
+                SELECT companies_id, wage, max(weeks_week) FROM company_wage_history WHERE company_wage_history.campaigns_id=? AND company_wage_history.weeks_week<=? GROUP BY companies_id
                 ) AS wage_hist
-            ON 
-                campaign_user_hours.companies_id=wage_hist.companies_id;`, [campaigns_id, lastWeek, campaigns_id, week])
+            ON
+                user_comp.id=wage_hist.companies_id
+            LEFT JOIN
+                user_total_company_hours
+            ON
+                username=user_total_company_hours.accounts_username
+                AND
+                user_comp.id=user_total_company_hours.companies_id
+            ORDER BY
+                username, name ASC;
+            `, [lastWeek, campaigns_id, lastWeek, campaigns_id, campaigns_id, week])
         
+    }
+
+    getPartialUserResults(username, week) {
+        const lastWeek = week - 1
+        
+        return db.all(
+            `
+            SELECT 
+                user_comp.id AS id, COALESCE(strike, 0) AS strike, name, wage, COALESCE(hours, 0) AS hours, 0 AS pay, COALESCE(totals.total_hours, 0) AS total_hours 
+            FROM 
+                (SELECT id, name FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_wage IS NOT null)
+                    AS user_comp
+            LEFT JOIN
+                (SELECT * FROM user_game_selections WHERE weeks_week=? AND accounts_username=?) AS selec
+            ON
+                user_comp.id=selec.companies_id
+            LEFT join
+                (
+                SELECT companies_id, wage, max(weeks_week) FROM company_wage_history WHERE company_wage_history.campaigns_id=(SELECT campaigns_id FROM accounts WHERE username=?) 
+                AND company_wage_history.weeks_week<=? GROUP BY companies_id
+                ) AS wage_hist
+            ON
+                user_comp.id=wage_hist.companies_id
+            LEFT JOIN
+                (SELECT * FROM user_total_company_hours WHERE accounts_username=?) AS th
+            ON
+                user_comp.id=th.companies_id
+            LEFT JOIN
+                (SELECT companies_id, sum(hours) AS total_hours FROM (SELECT * FROM user_game_selections WHERE accounts_username=? AND weeks_week<=?) GROUP BY companies_id) AS totals
+            ON
+                totals.companies_id=user_comp.id
+            ORDER BY
+                name ASC;
+            `, [lastWeek, lastWeek, username, username, week, username, username, lastWeek])
+        
+    }
+
+    getWeekLeaderboard(week, campaign_id) {
+        return db.all('SELECT accounts_username AS username, printf("%.2f", week_profit) AS week_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY week_profit DESC;', [week, campaign_id])
+    }
+
+    getAllTimeLeaderboard(week, campaign_id) {
+        return db.all('SELECT accounts_username AS username, printf("%.2f", total_profit) AS total_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY total_profit DESC;', [week, campaign_id])
     }
 
     updateStrikeTable(week, campaigns_id) {
@@ -171,13 +223,13 @@ class Calculations {
                                 FROM 
                                     user_game_selections 
                                 WHERE 
-                                    accounts_username 
-                                    IN 
-                                    (SELECT username FROM accounts WHERE campaigns_id=?)
+                                    accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?)
+                                    AND
+                                    companies_id IN (SELECT id FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_wage IS NOT null )
                                 ) AS selec
                             GROUP BY
                                 selec.companies_id;       
-                    `, [campaigns_id, week, campaigns_id])
+                    `, [campaigns_id, week, campaigns_id, week])
                 })
                 .then(() => {
                     return db.run("COMMIT;")
@@ -185,27 +237,47 @@ class Calculations {
     }
 
     updateTotalHours(campaigns_id, weeks_week) {
-        return db.all(`
-            REPLACE INTO user_total_company_hours 
-                SELECT 
-                    selec.accounts_username, selec.companies_id, COALESCE(total_hours, 0) + selec.hours
-                FROM 
-                    (SELECT 
-                        accounts_username, companies_id, hours 
-                    FROM 
-                        user_game_selections 
-                    WHERE 
-                        weeks_week=? 
-                        AND 
-                        accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?)) AS selec 
-                LEFT JOIN
-                    user_total_company_hours AS totals 
-                ON 
-                    selec.accounts_username=totals.accounts_username
-                    AND
-                    selec.companies_id=totals.companies_id
-            ;
-        `, [weeks_week, campaigns_id])
+        let clean = undefined
+        return db.run("BEGIN TRANSACTION;")
+            .then(() => {
+                if(weeks_week === 1) {
+                clean = db.run("DELETE FROM user_total_company_hours;")
+                }
+
+                const replacements = 
+                    db.run(`
+                    REPLACE INTO user_total_company_hours 
+                        SELECT 
+                            selec.accounts_username, selec.companies_id, COALESCE(total_hours, 0) + selec.hours
+                        FROM 
+                            (SELECT 
+                                accounts_username, companies_id, hours 
+                            FROM 
+                                user_game_selections 
+                            WHERE 
+                                weeks_week=? 
+                                AND 
+                                accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?)) 
+                            AS selec 
+                        LEFT JOIN
+                            user_total_company_hours AS totals 
+                        ON 
+                            selec.accounts_username=totals.accounts_username
+                            AND
+                            selec.companies_id=totals.companies_id
+                    ;
+                    `, [weeks_week, campaigns_id])
+
+                if(clean) {
+                    return clean.then(() => {
+                        return replacements
+                    })
+                }
+                return replacements
+            })
+            .then(() => {
+                return db.run("COMMIT;")
+            }) 
     }
 
     /**
@@ -306,6 +378,9 @@ class Calculations {
         .then((statementsToRun) => {
             return db.run("BEGIN TRANSACTION;")
             .then(() => {
+                return db.run("DELETE FROM user_career_history WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) AND weeks_week=?", [campaigns_id, week])
+            })
+            .then(() => {
                 return Promise.all(statementsToRun)
             })
             .then(() => {
@@ -313,6 +388,282 @@ class Calculations {
             })
         })
         
+        
+    }
+
+    getMultipliers(week, campaigns_id) {
+        const lastWeek = week - 1
+        return Promise.all([
+            // // 2a) Fixed Events
+            db.all("SELECT companies_id, description, event_types_id, event_data FROM fixed_event_cards WHERE weeks_week=?;", [week]),
+            // // 2b) Event Cards
+            db.get("SELECT id, companies_id, description, event_types_id, event_data FROM event_card_history JOIN event_cards ON event_card_history.event_cards_id=event_cards.id AND event_card_history.weeks_week=?;", [lastWeek])
+            .then((existingCard) => {
+                if(existingCard) {
+                    return existingCard
+                }
+                return db.get("SELECT id, companies_id, description, event_types_id, event_data FROM event_cards ORDER BY RANDOM() LIMIT 1;").then((newCard) => {return newCard})
+            }),
+            // // 2c) Company Strike
+            db.all("SELECT companies_id, workers_striked, total_workers FROM user_strike_weeks WHERE campaigns_id=? and weeks_week=?;", [campaigns_id, lastWeek]),
+            // // 2d) Career Boost
+            db.all("SELECT accounts_username, companies_id, max(weeks_week), is_supervisor FROM user_career_history WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) GROUP BY accounts_username;", [campaigns_id])
+
+            ])
+    }
+
+    updateWeekResources(campaigns_id, week) {
+        const lastWeek = week - 1
+        return db.all(`SELECT username FROM accounts WHERE campaigns_id=?`, [campaigns_id]).then((usernames) => {
+            usernames.forEach(user => {
+                const username = user.username
+                return Promise.all(
+                    [
+                        db.all(`SELECT 
+                                    companies.name, hours 
+                                FROM 
+                                    companies
+                                JOIN
+                                    user_game_selections
+                                ON
+                                    companies.id=user_game_selections.companies_id
+                                WHERE 
+                                    accounts_username=? 
+                                    AND
+                                    weeks_week=?
+                                    AND
+                                    companies.name IN ('MEDITATION', 'GYM', 'TUTORIAL') 
+                                ORDER BY 
+                                    companies.name`
+                            , [username, lastWeek]),
+                
+                        db.get("SELECT * FROM user_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, lastWeek]),
+                        db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week])
+                    ]
+                )
+                .then((queries) => {
+                    const resourceHours = queries[0]
+                    let [additional_brain, additional_muscle, additional_heart] = [0, 0, 0]
+                    resourceHours.forEach(row => {
+                        if(row.name === "MEDITATION") {
+                            additional_heart = row.hours
+                        }
+                        else if(row.name === "GYM") {
+                            additional_muscle = row.hours
+                        }
+                        else {
+                            additional_brain = row.hours
+                        }
+                    });
+                    // Figures out the Training done, and applies it to the new
+                    // available resources for this week
+                    const gameWeek = queries[1]
+                    
+                    const available_brain = gameWeek.available_brain+additional_brain
+                    const available_muscle = gameWeek.available_muscle+additional_muscle
+                    const available_heart = gameWeek.available_heart+additional_heart
+                    
+                   
+                    db.run(`
+                        REPLACE INTO 
+                            user_game_weeks 
+                        VALUES 
+                            (?, ?, ?, ?, ?, ?) 
+                        `
+                        , [username, week, false,available_brain,available_muscle, available_heart])
+                })
+            })
+            
+        })
+        
+    }
+
+    getUserResults(username, week) {
+        return db.get("SELECT campaigns_id FROM accounts WHERE username=?;", [username])
+        .then(campaigns_id => {
+            return Promise.all([
+                this.getMultipliers(week, campaigns_id.campaigns_id),
+                this.getPartialUserResults(username, week)
+            ])
+        })
+        .then((data) => {
+            return this.getResults(data[0], data[1], week, false)
+        })
+    }
+
+    calculateTotalProfits(campaigns_id, week) {
+        return Promise.all([
+            this.getMultipliers(week),
+            this.getAllPartialUserResults(week, campaigns_id)
+        ])
+        .then((data) => {
+            return this.getResults(data[0], data[1], week, true)
+        })
+        
+    }
+
+    getResults(multipliers, rows, week, updateUserProfits = Boolean) {
+        const fixedCards = multipliers[0]
+        const fixedCardsSearch = {}
+        fixedCards.forEach(card => {
+            const company_id = card.companies_id
+            fixedCardsSearch[company_id] = {card}
+        })
+        const eventCard = multipliers[1]
+        const eventCardCompany = eventCard.companies_id
+        const strikeData = multipliers[2]
+        const strikeDataSearch = {}
+        strikeData.forEach(company => { // only has companies that attempted a strike
+            const id = company.companies_id
+            strikeDataSearch[id] = {}
+            strikeDataSearch[id] = (company.workers_striked/company.total_workers) > 0.5
+        });
+        const careerData = multipliers[3]
+        const careerDataSearch = {}
+        careerData.forEach(career => {
+            const username = career.accounts_username
+            if(careerDataSearch[username] === undefined) {
+                careerDataSearch[username] = {}
+            }
+            const id = career.companies_id
+            careerDataSearch[username][id] = career.is_supervisor
+        })
+
+        const totals = {}
+        
+        rows.forEach(row => {
+            
+            const username = row.username
+            const id = row.id
+            const wage = row.wage
+            const hours = row.hours
+            const userStriked = row.strike
+
+            let bankrupt = false
+            let multiplier = 1
+            if(eventCardCompany === id) {
+                const type = eventCard.event_types_id
+                if(type === 2) { // Out of Business
+                    bankrupt = true
+                }
+                else {
+                    multiplier += eventCard.event_data
+                }
+            }
+
+            if(!bankrupt && fixedCardsSearch[id] !== undefined) {
+                const fixedCard = fixedCardsSearch[id]
+                if(fixedCard.event_types_id === 2) { // Out of Business
+                    bankrupt = true
+                }
+                else {
+                    multiplier += fixedCard.event_data
+                }
+            }
+
+            const isSupervisor = careerDataSearch[username] === undefined ? undefined : careerDataSearch[username][id]
+            
+            if(!bankrupt) { 
+                const workersStriked = strikeDataSearch[id] !== undefined
+                let strikeSuccessful;
+                if(workersStriked) {
+                    strikeSuccessful = strikeDataSearch[id]
+                } 
+                
+                if(isSupervisor !== undefined) { // is supervisor or regular
+                    if(isSupervisor) {
+                        multiplier += 0.2 // supervisor bonus
+                        if(workersStriked) {
+                            if(!strikeSuccessful) {
+                                multiplier += (5/wage) // prevented strike bonus
+                            }
+                            else {
+                                multiplier = 0 // strike won, supervisor loses pay
+                            }
+                        } 
+                    }
+                    else { // is regular
+                        multiplier += 0.05 // regular increase
+                        if(workersStriked) {
+                            if(userStriked) { // the strike won and they were a part of it
+                                if(strikeSuccessful) {
+                                    multiplier += (5/wage)
+                                }
+                                else {
+                                    multiplier = 0
+                                } 
+                            }
+                        
+                        }
+                    }
+                }
+                else { // noPosition
+                    if(workersStriked) {
+                        if(userStriked) { // the strike won and they were a part of it
+                            if(strikeSuccessful) {
+                                multiplier += (5/wage)
+                            }
+                            else {
+                                multiplier = 0
+                            } 
+                        }
+                    }
+                }
+            }
+            else { // company went bankrupt
+                multiplier = 0
+            }
+
+            const newWage = wage*multiplier
+            
+            if(multiplier === 1) {
+                row.wage = Math.floor(newWage*100)/100
+            }
+            else {
+                row.wage = ""+(Math.floor(newWage*100)/100)+"("+(Math.floor(wage*100)/100)+"*"+multiplier+")"
+            }
+            const pay = newWage*hours
+            row.pay = Math.floor(pay*100)/100
+            if(totals[username] === undefined) {
+                totals[username] = pay
+            }
+            else {
+                totals[username] += pay
+            }
+            
+            let careerName = "None"
+            if(isSupervisor !== undefined) {
+                if(isSupervisor) {
+                    careerName = "Supervisor"
+                }
+                else {
+                    careerName = "Regular"
+                }
+            }
+            row.career = careerName
+
+            
+        });
+        if(updateUserProfits) {
+            return db.run("BEGIN TRANSACTION;").then(() => {
+                const totalsUpdates = []
+                Object.keys(totals).forEach(key => {
+                    const username = key
+                    const week_profit = totals[username]
+                    if(week === 1) {
+                        totalsUpdates.push(db.run("REPLACE INTO user_profit_weeks VALUES (?, ?, ?, ?);", [username, week, week_profit, week_profit]))
+                    }
+                    else {
+                        totalsUpdates.push(db.run("REPLACE INTO user_profit_weeks VALUES (?, ?, ?, ?+(SELECT total_profit FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?));", [username, week, week_profit, week_profit, username, week]))
+                    }
+                })
+                return Promise.all(totalsUpdates).then(() => {return db.run("COMMIT;")})
+            }) 
+            .then(() => {return rows})
+        }
+        else {
+            return rows
+        }
         
     }
 
@@ -361,95 +712,62 @@ class Calculations {
             // Inserting the wages into the DB
             return db.run("BEGIN TRANSACTION;").then(() => {
                 const updates = result.map(c => {
-                    return db.run("REPLACE INTO company_wage_history VALUES (?, ?, ?, ?)", [c.companies_id, campaigns_id, week, c.hourlyRate])
+                    return db.run("REPLACE INTO company_wage_history VALUES (?, ?, ?, ?);", [c.companies_id, campaigns_id, week, c.hourlyRate])
                 });
                 return Promise.all(updates).then(() => {
                     return db.run("COMMIT;")
                 })
             })
         })
-        .then(() => { // Updated the DB user_strike_weeks table
-            return Promise.all([
-                this.updateStrikeTable(lastWeek, campaigns_id),
-                this.updateTotalHours(campaigns_id, lastWeek)
-                .then(() => {
-                    this.updateCareersTable(campaigns_id, week)
-                })
-            ])
-            
+        .then(() => { // Updated/Calculate required pieces of data   
+            return this.updateStrikeTable(lastWeek, campaigns_id)
+                    .then(() => {
+                        return this.updateTotalHours(campaigns_id, lastWeek) // This is a temporary table used for calculations
+                    })
+                    .then(() => {
+                        return this.updateCareersTable(campaigns_id, week)
+                    })
+                    .then(() => {
+                        return this.updateWeekResources(campaigns_id, week)
+                    })
         })
         .then(() => {
-            // // 2) Get Modifier Rates (This includes updating them first)
-            return Promise.all([
-            // // 2a) Fixed Events
-            db.all("SELECT companies_id, description, event_types_id, event_data FROM fixed_event_cards WHERE weeks_week=?;", [week]),
-            // // 2b) Event Cards
-
-            // ******* NEED TO CHECK IF THIS ALREADY EXISTS IN THE EVENT CARD HISTORY
-            db.get("SELECT id, companies_id, description, event_types_id, event_data FROM event_card_history JOIN event_cards ON event_card_history.event_cards_id=event_cards.id AND event_card_history.weeks_week=?", [lastWeek])
-            .then((existingCard) => {
-                if(existingCard) {
-                    return existingCard
-                }
-                return db.get("SELECT id, companies_id, description, event_types_id, event_data FROM event_cards ORDER BY RANDOM() LIMIT 1;")
-            }),
-            // // 2c) Company Strike
-            db.all("SELECT companies_id, workers_striked, total_workers FROM user_strike_weeks WHERE campaigns_id=? and weeks_week=?", [campaigns_id, lastWeek])
-            // // 2d) Career Boost
-            
-
-            ])
+            // // 2) Get Modifier Rates After being updated before
+            return this.getMultipliers(week)
         })
         .then((data) => {
             // update histories
             const eventCard = data[1]
             return Promise.all([
-                db.run(`INSERT OR IGNORE INTO event_card_history VALUES (?, ?)`, [lastWeek, eventCard.id]) // This not replace because if it is randomly selected and may have already been chosen
+                db.run(`INSERT OR IGNORE INTO event_card_history VALUES (?, ?);`, [lastWeek, eventCard.id]) // This does not 'replace' because it is randomly selected and may have already been chosen
             ]).then(() => {
                 return data
             })
         })
-        .then((data) => {
+        .then((multipliers) => {
+
             // 3) Calculate each individual user's score
-            return this.calculateUserScores(week, campaigns_id, data[0], data[1], data[2], null).then((res) => {
-                console.log(res)
-                // const all = {}
-                // res.forEach(row => {
-                    
-                //     if(all[row.username] == null) {
-                //         all[row.username] = 0
-                //     }
-                //     all[row.username]+=Math.round((row.wage*row.hours) * 100) / 100
-                // })
-                // return all
+            return this.getAllPartialUserResults(week, campaigns_id).then((scores) => {
+                // Format: username, id, name, wage, hours 
+               return this.calculateTotalProfits(multipliers, scores, lastWeek)
             })
         })
-        // .then((all) => {
-        //     return db.all("SELECT username FROM accounts WHERE campaigns_id=?", [campaigns_id]).then((users) => {
-        //         const final = []
-                
-        //         users.forEach(user => {
-        //             const username = user.username
-        //             let profit = all[username]
-        //             if(!profit) {
-        //                 profit = 0
-        //             }
-        //             final.push({user: username, profit: profit})
-        //         })
-                
-                
-        //         console.log(final)
-        //     })
-            
-        // })
+        .then((data) => {
+            const csv = parse(data)
+            fs.writeFile(path.join(__dirname, 'database/results.csv'), csv, (err) => {
+                if(err) console.log(err);
+                console.log("Saved!")
+            })
+        })
     }
-
-    
 }
 
 
-const c = new Calculations(db);
-const campaigns_id = 3
-const weekForWages = 2
 
-c.calculateUpToAndIncludingWeek(campaigns_id, weekForWages)
+
+const c = new Calculations(db);
+
+//c.calculateUpToAndIncludingWeek(2, 2)
+
+
+module.exports = Calculations

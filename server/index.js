@@ -10,7 +10,7 @@ const session = require('express-session')
 const encryption = require('./encryption')
 const admin = require('./administration')
 const Calculations = require('./calculations')
-const resultCalculations = new Calculations()
+const resultCalculations = new Calculations(db)
 
 app.use(session({
 	secret: 'wee-woo-seeecret',
@@ -28,10 +28,9 @@ app.get('/api/getGameFormData', (req, res) => {
 	}
 	const data = {}
 	const username = req.session.username
-	const buntaz = 44;
 	const week = req.body.week == null ? admin.currentWeek[req.session.campaign_id] : req.body.week;
 	const lastWeek= week - 1;
-	const cuntaz = 3;
+	
 	data.username = username
 	data.week = week
 	Promise.all([
@@ -74,7 +73,6 @@ app.get('/api/getGameFormData', (req, res) => {
 			//    strike: 0,
 			//  } , ... 
 		// ]
-		console.log("YEET" + buntaz + "IM BUNTAZ")
 		const company_sessions = queries[1]
 		//re-order to have the Resources at the end in the order TUTORIAL, GYM, MEDITATION
 		let ordered_companies = []

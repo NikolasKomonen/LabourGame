@@ -3,10 +3,6 @@ const path = require('path')
 const {parse} = require('json2csv')
 const fs = require('fs')
 
-let db = new SQL(path.join(__dirname, 'database/dbFile.sqlite'));
-db.startDB()
-
-
 const euler=2.7182818284590452353602874713527
 
 class Calculations {
@@ -132,7 +128,7 @@ class Calculations {
 
     getAllPartialUserResults(week, campaigns_id) {
         
-        return db.all(
+        return this.db.all(
             `
             SELECT 
                 username, user_comp.id AS id, COALESCE(strike, 0) AS strike, name, wage, COALESCE(hours, 0) AS hours, 0 AS pay, COALESCE(total_hours, 0) AS total_hours 
@@ -168,7 +164,7 @@ class Calculations {
 
     getPartialUserResults(username, week) {
 
-        return db.all(
+        return this.db.all(
             `
             SELECT 
                 user_comp.id AS id, COALESCE(strike, 0) AS strike, name, wage, COALESCE(hours, 0) AS hours, 0 AS pay, COALESCE(totals.total_hours, 0) AS total_hours 
@@ -201,11 +197,11 @@ class Calculations {
     }
 
     getWeekLeaderboard(week, campaign_id) {
-        return db.all('SELECT accounts_username AS username, printf("%.2f", week_profit) AS week_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY week_profit DESC;', [week, campaign_id])
+        return this.db.all('SELECT accounts_username AS username, printf("%.2f", week_profit) AS week_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY week_profit DESC;', [week, campaign_id])
     }
 
     getAllTimeLeaderboard(week, campaign_id) {
-        return db.all('SELECT accounts_username AS username, printf("%.2f", total_profit) AS total_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY total_profit DESC;', [week, campaign_id])
+        return this.db.all('SELECT accounts_username AS username, printf("%.2f", total_profit) AS total_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY total_profit DESC;', [week, campaign_id])
     }
 
     /**
@@ -214,9 +210,9 @@ class Calculations {
      * @param {*} campaigns_id 
      */
     updateStrikeTable(week, campaigns_id) {
-        return db.run("BEGIN TRANSACTION;")
+        return this.db.run("BEGIN TRANSACTION;")
                 .then(() => {
-                    return db.run(`
+                    return this.db.run(`
                         REPLACE INTO user_strike_weeks
                             SELECT 
                                 * 
@@ -249,20 +245,20 @@ class Calculations {
                     `, [campaigns_id, week, campaigns_id, week, week])
                 })
                 .then(() => {
-                    return db.run("COMMIT;")
+                    return this.db.run("COMMIT;")
                 })
     }
 
     updateTotalHours(campaigns_id, weeks_week) {
         let clean = undefined
-        return db.run("BEGIN TRANSACTION;")
+        return this.db.run("BEGIN TRANSACTION;")
             .then(() => {
                 if(weeks_week === 1) {
-                clean = db.run("DELETE FROM user_total_company_hours;")
+                clean = this.db.run("DELETE FROM user_total_company_hours;")
                 }
 
                 const replacements = 
-                    db.run(`
+                this.db.run(`
                     REPLACE INTO user_total_company_hours 
                         SELECT 
                             selec.accounts_username, selec.companies_id, COALESCE(total_hours, 0) + selec.hours
@@ -296,7 +292,7 @@ class Calculations {
                 return replacements
             })
             .then(() => {
-                return db.run("COMMIT;")
+                return this.db.run("COMMIT;")
             }) 
     }
 
@@ -314,7 +310,7 @@ class Calculations {
         const supervisorCandidates = {} // {company_id: []}
         const noCareerHistory = {} // holds 
         const statementsToRun = []
-        return db.all(`
+        return this.db.all(`
             SELECT
                 tohist.accounts_username AS accounts_username, tohist.companies_id AS companies_id, is_supervisor, reached_supervisor, total_hours, regular_hours, supervisor_hours, selec.hours AS last_week_hours
             FROM
@@ -369,7 +365,7 @@ class Calculations {
                 if(totalHours >= row.supervisor_hours) { // is eligible for Supervisor
                     if(row.is_supervisor) {
                         if(row.last_week_hours != undefined && !row.last_week_hours) { // did not work last week, lose their supervisor position
-                            statementsToRun.push(db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)", [row.accounts_username, row.companies_id, nextWeek, false, true]))
+                            statementsToRun.push(this.db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)", [row.accounts_username, row.companies_id, nextWeek, false, true]))
                             return
                         }
                         else { // keep their supervisor position, making everything else meaningless
@@ -385,7 +381,7 @@ class Calculations {
                 }
                 else { //is eligible for Regular
                     delete noCareerHistory[noCareerKey]
-                    statementsToRun.push(db.run("REPLACE into user_career_history VALUES (?, ?, ?, ?, ?)",[row.accounts_username, row.companies_id, nextWeek, false, false]))
+                    statementsToRun.push(this.db.run("REPLACE into user_career_history VALUES (?, ?, ?, ?, ?)",[row.accounts_username, row.companies_id, nextWeek, false, false]))
                 }
             })
             
@@ -400,22 +396,22 @@ class Calculations {
                 const newSupervisor = candidates[newSupervisorIndex]
                 const noCareerKey = newSupervisor.accounts_username + newSupervisor.companies_id
                 delete noCareerHistory[noCareerKey]
-                statementsToRun.push(db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)",[newSupervisor.accounts_username, newSupervisor.companies_id, nextWeek, true, true]))
+                statementsToRun.push(this.db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)",[newSupervisor.accounts_username, newSupervisor.companies_id, nextWeek, true, true]))
             })
 
             return statementsToRun
         })
         .then((statementsToRun) => {
-            return db.run("BEGIN TRANSACTION;")
+            return this.db.run("BEGIN TRANSACTION;")
             .then(() => {
                 // Remove all current careers for next week
-                return db.run("DELETE FROM user_career_history WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) AND weeks_week=?", [campaigns_id, nextWeek])
+                return this.db.run("DELETE FROM user_career_history WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) AND weeks_week=?", [campaigns_id, nextWeek])
             })
             .then(() => {
                 return Promise.all(statementsToRun)
             })
             .then(() => {
-                return db.run("COMMIT;")
+                return this.db.run("COMMIT;")
             })
         })
         
@@ -425,9 +421,9 @@ class Calculations {
     getMultipliers(week, campaigns_id) {
         return Promise.all([
             // // 2a) Fixed Events
-            db.all("SELECT companies_id, description, event_types_id, event_data FROM fixed_event_cards WHERE weeks_week=?;", [week]),
+            this.db.all("SELECT companies_id, description, event_types_id, event_data FROM fixed_event_cards WHERE weeks_week=?;", [week]),
             // // 2b) Event Cards
-            db.get("SELECT id, companies_id, description, event_types_id, event_data FROM event_card_history JOIN event_cards ON event_card_history.event_cards_id=event_cards.id WHERE event_card_history.weeks_week=?;", [week])
+            this.db.get("SELECT id, companies_id, description, event_types_id, event_data FROM event_card_history JOIN event_cards ON event_card_history.event_cards_id=event_cards.id WHERE event_card_history.weeks_week=?;", [week])
             .then((existingCard) => {
                 if(existingCard) {
                     return existingCard
@@ -435,9 +431,9 @@ class Calculations {
                 return this.getRandomEventCard().then((newCard) => {return newCard})
             }),
             // // 2c) Company Strike
-            db.all("SELECT companies_id, workers_striked, total_workers FROM user_strike_weeks WHERE campaigns_id=? and weeks_week=?;", [campaigns_id, week]),
+            this.db.all("SELECT companies_id, workers_striked, total_workers FROM user_strike_weeks WHERE campaigns_id=? and weeks_week=?;", [campaigns_id, week]),
             // // 2d) Career Boost
-            db.all("SELECT accounts_username, companies_id, max(weeks_week), is_supervisor FROM user_career_history WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) GROUP BY accounts_username;", [campaigns_id])
+            this.db.all("SELECT accounts_username, companies_id, max(weeks_week), is_supervisor FROM user_career_history WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) GROUP BY accounts_username;", [campaigns_id])
 
             ])
     }
@@ -445,7 +441,7 @@ class Calculations {
     getRandomEventCard() {
         // Check if 2 Bankrupcy cards were played
         
-        return db.get(`SELECT count(*) AS total FROM event_card_history JOIN event_cards ON event_card_history.event_cards_id=event_cards.id WHERE event_types_id=2`)
+        return this.db.get(`SELECT count(*) AS total FROM event_card_history JOIN event_cards ON event_card_history.event_cards_id=event_cards.id WHERE event_types_id=2`)
         .then(count => {
             const total = count.total
             if(total >= 2) {
@@ -455,20 +451,20 @@ class Calculations {
         })
         .then((dontDrawBankrupcyCard) => {
             if(dontDrawBankrupcyCard) {
-                return db.get(`SELECT * FROM event_cards WHERE event_types_id!=2 AND id NOT IN (SELECT event_cards_id FROM event_card_history)`)
+                return this.db.get(`SELECT * FROM event_cards WHERE event_types_id!=2 AND id NOT IN (SELECT event_cards_id FROM event_card_history)`)
             }
-            return db.get(`SELECT * FROM event_cards WHERE id NOT IN (SELECT event_cards_id FROM event_card_history)`)
+            return this.db.get(`SELECT * FROM event_cards WHERE id NOT IN (SELECT event_cards_id FROM event_card_history)`)
         })
     }
 
     updateWeekResources(campaigns_id, week) {
         const lastWeek = week - 1
-        return db.all(`SELECT username FROM accounts WHERE campaigns_id=?`, [campaigns_id]).then((usernames) => {
+        return this.db.all(`SELECT username FROM accounts WHERE campaigns_id=?`, [campaigns_id]).then((usernames) => {
             usernames.forEach(user => {
                 const username = user.username
                 return Promise.all(
                     [
-                        db.all(`SELECT 
+                        this.db.all(`SELECT 
                                     companies.name, hours 
                                 FROM 
                                     companies
@@ -486,8 +482,8 @@ class Calculations {
                                     companies.name`
                             , [username, lastWeek]),
                 
-                        db.get("SELECT * FROM user_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, lastWeek]),
-                        db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week])
+                            this.db.get("SELECT * FROM user_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, lastWeek]),
+                            this.db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week])
                     ]
                 )
                 .then((queries) => {
@@ -513,7 +509,7 @@ class Calculations {
                     const available_heart = gameWeek.available_heart+additional_heart
                     
                    
-                    db.run(`
+                    this.db.run(`
                         REPLACE INTO 
                             user_game_weeks 
                         VALUES 
@@ -536,20 +532,20 @@ class Calculations {
         const queryQueue = []
         const nextWeek = week + 1
         const companyID = eventCard.companies_id
-        return db.run(`REPLACE INTO weekly_excluded_companies SELECT ?, companies_id, went_bankrupt FROM weekly_excluded_companies WHERE weeks_week=?`, [nextWeek, week])
+        return this.db.run(`REPLACE INTO weekly_excluded_companies SELECT ?, companies_id, went_bankrupt FROM weekly_excluded_companies WHERE weeks_week=?`, [nextWeek, week])
         .then(() => {
             if(eventCard.event_types_id === 2) { // Company is bankrupt
                 queryQueue.push(
                     // Choose Random company from all currently excluded ones and make it available for next week
-                    db.get(`
+                    this.db.get(`
                             SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=? AND went_bankrupt=0 ORDER BY RANDOM() LIMIT 1;
                         `, [week])
                     .then((query) => {
                         const joiningCompanyID = query.companies_id
-                        return db.run("DELETE FROM weekly_excluded_companies WHERE companies_id=? AND weeks_week=?;", [joiningCompanyID, nextWeek])
+                        return this.db.run("DELETE FROM weekly_excluded_companies WHERE companies_id=? AND weeks_week=?;", [joiningCompanyID, nextWeek])
                     })
                     .then(() => { // Exclude provided event card company from next week
-                        return db.run(`
+                        return this.db.run(`
                             REPLACE INTO 
                                 weekly_excluded_companies 
                             VALUES (?, ?, 1)
@@ -559,14 +555,14 @@ class Calculations {
                 )
             }
             // Update the event card history
-            queryQueue.push(db.run(`INSERT OR IGNORE INTO event_card_history VALUES (?, ?);`, [week, companyID]))
+            queryQueue.push(this.db.run(`INSERT OR IGNORE INTO event_card_history VALUES (?, ?);`, [week, companyID]))
             return Promise.all(queryQueue)
         })
         
     }
 
     getUserResults(username, week) {
-        return db.get("SELECT campaigns_id FROM accounts WHERE username=?;", [username])
+        return this.db.get("SELECT campaigns_id FROM accounts WHERE username=?;", [username])
         .then(campaigns_id => {
             return Promise.all([
                 this.getMultipliers(week, campaigns_id.campaigns_id),
@@ -586,12 +582,12 @@ class Calculations {
         return this.calculateWagesForWeek(week, campaigns_id) // JSON's of this week's wages
         .then((result) => {
             // Inserting the wages into the DB
-            return db.run("BEGIN TRANSACTION;").then(() => {
+            return this.db.run("BEGIN TRANSACTION;").then(() => {
                 const updates = result.map(c => {
-                    return db.run("REPLACE INTO company_wage_history VALUES (?, ?, ?, ?);", [c.companies_id, campaigns_id, week, c.hourlyRate])
+                    return this.db.run("REPLACE INTO company_wage_history VALUES (?, ?, ?, ?);", [c.companies_id, campaigns_id, week, c.hourlyRate])
                 });
                 return Promise.all(updates).then(() => {
-                    return db.run("COMMIT;")
+                    return this.db.run("COMMIT;")
                 })
             })
         })   
@@ -637,11 +633,6 @@ class Calculations {
         
         while(currentWeek <= week) {
             const results = await this.calculateTotalProfits(campaigns_id, currentWeek)
-            fs.writeFile(path.join(__dirname, 'database/results.txt'), JSON.stringify(results, null, 2), (err) => {
-                if(err) console.log(err);
-                console.log("Saved!")
-            })
-            
             currentWeek++
         }
         if(currentWeek - 1 === week) {
@@ -793,19 +784,19 @@ class Calculations {
             row.career = careerName
         });
         if(updateUserProfits) {
-            db.run("BEGIN TRANSACTION;").then(() => {
+            this.db.run("BEGIN TRANSACTION;").then(() => {
                 const totalsUpdates = []
                 Object.keys(totals).forEach(key => {
                     const username = key
                     const week_profit = totals[username]
                     if(week === 1) {
-                        totalsUpdates.push(db.run("REPLACE INTO user_profit_weeks VALUES (?, ?, ?, ?);", [username, week, week_profit, week_profit]))
+                        totalsUpdates.push(this.db.run("REPLACE INTO user_profit_weeks VALUES (?, ?, ?, ?);", [username, week, week_profit, week_profit]))
                     }
                     else {
-                        totalsUpdates.push(db.run("REPLACE INTO user_profit_weeks VALUES (?, ?, ?, ?+(SELECT total_profit FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?));", [username, week, week_profit, week_profit, username, week]))
+                        totalsUpdates.push(this.db.run("REPLACE INTO user_profit_weeks VALUES (?, ?, ?, ?+(SELECT total_profit FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?));", [username, week, week_profit, week_profit, username, week]))
                     }
                 })
-                return Promise.all(totalsUpdates).then(() => {return db.run("COMMIT;")})
+                return Promise.all(totalsUpdates).then(() => {return this.db.run("COMMIT;")})
             }) 
         }
         return rows
@@ -820,10 +811,11 @@ class Calculations {
 }
 
 
+// const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
+// db.startDB().then(() => {
+//     const c = new Calculations(db);
+//     c.calculateTotalProfitsVerified(2, 1)
 
-
-const c = new Calculations(db);
-
-console.log(c.calculateTotalProfitsVerified(3, 1))
+// })
 
 module.exports = Calculations

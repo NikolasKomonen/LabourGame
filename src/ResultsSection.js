@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { Box, TablePagination, Typography } from '@material-ui/core'
+import { Box } from '@material-ui/core'
 import { withStyles } from '@material-ui/core/styles';
 import Table from '@material-ui/core/Table';
 import TableBody from '@material-ui/core/TableBody';
@@ -28,8 +28,9 @@ const styles = withStyles({
         color: "white",
         size: "15px"
     },
-    valueData: {
-        size: "16px",
+    boldData: {
+        fontSize: "18px",
+        
         fontWeight: "bolder"
     }
 });
@@ -41,7 +42,8 @@ class ResultsSection extends Component {
             isLoaded: false,
             userRows: [],
             leaderboardWeek: [],
-            leaderboardAll: []
+            leaderboardAll: [],
+            username: ""
         }
 
     }
@@ -57,11 +59,13 @@ class ResultsSection extends Component {
             .then(res => {
                 return res.json();
             }).then(data => {
+                console.log(data)
                 const tempState = {}
                 tempState.userRows = data.userRows
                 tempState.leaderboardWeek = data.leaderboardWeek
                 tempState.leaderboardAll = data.leaderboardAll
                 tempState.isLoaded = true
+                tempState.username = data.username
                 this.setState(tempState)
             }, (error) => {
                 console.log("Error fetching companies: " + error)
@@ -79,10 +83,10 @@ class ResultsSection extends Component {
                         <TableHead>
                             <TableRow className={this.props.classes.headRow}>
                                 <TableCell className={this.props.classes.headText} align="right">Company</TableCell>
-                                <TableCell className={this.props.classes.headText} align="right">Wage</TableCell>
+                                <TableCell className={this.props.classes.headText} align="right">Wage(Modifier)</TableCell>
                                 <TableCell className={this.props.classes.headText} align="right">Hours Worked</TableCell>
                                 <TableCell className={this.props.classes.headText} align="right">Pay</TableCell>
-                                <TableCell className={this.props.classes.headText} align="right">Total Hours</TableCell>
+                                <TableCell className={this.props.classes.headText} align="right">Total Hours Worked</TableCell>
                                 <TableCell className={this.props.classes.headText} align="right">Career</TableCell>
                             </TableRow>
                         </TableHead>
@@ -94,8 +98,8 @@ class ResultsSection extends Component {
 
                                         <TableCell align="right" color="white">{row.name}</TableCell>
                                         <TableCell align="right">${row.wage}</TableCell>
-                                        <TableCell className={row.hours > 0 ? this.props.classes.valueData : ""} align="right">{row.hours} Hrs</TableCell>
-                                        <TableCell className={row.hours > 0 ? this.props.classes.valueData : ""} align="right">${row.pay}</TableCell>
+                                        <TableCell className={row.hours > 0 ? this.props.classes.boldData : ""} align="right">{row.hours} Hrs</TableCell>
+                                        <TableCell className={row.hours > 0 ? this.props.classes.boldData : ""} align="right">${row.pay}</TableCell>
                                         <TableCell align="right">{row.total_hours} Hrs</TableCell>
                                         <TableCell align="right">{row.career}</TableCell>
                                     </TableRow>
@@ -124,8 +128,8 @@ class ResultsSection extends Component {
                                 return (
                                     <TableRow key={row.username}>
 
-                                        <TableCell align="left" color="white">{row.username}</TableCell>
-                                        <TableCell align="right">{row.week_profit}</TableCell>
+                                        <TableCell align="left" color="white" className={row.username === this.state.username? this.props.classes.boldData : ""}>{row.username}</TableCell>
+                                        <TableCell align="right" className={row.username === this.state.username? this.props.classes.boldData : ""}>${row.week_profit}</TableCell>
 
                                     </TableRow>
                                 )
@@ -146,8 +150,8 @@ class ResultsSection extends Component {
                                 return (
                                     <TableRow key={row.username}>
 
-                                        <TableCell align="left" color="white">{row.username}</TableCell>
-                                        <TableCell align="right">{row.total_profit}</TableCell>
+                                        <TableCell align="left" color="white" className={row.username === this.state.username? this.props.classes.boldData : ""}>{row.username}</TableCell>
+                                        <TableCell align="right" className={row.username === this.state.username? this.props.classes.boldData : ""}>${row.total_profit}</TableCell>
 
                                     </TableRow>
                                 )

@@ -5,7 +5,7 @@ const express = require('express')
 const app = express()
 const port = 3001
 let db = new SQL(path.join(__dirname, 'database/dbFile.sqlite'));
-db.startDB()
+db.startDB().then(() => {db.run("PRAGMA foreign_keys=ON;")})
 const session = require('express-session')
 const encryption = require('./encryption')
 const admin = require('./administration')
@@ -28,7 +28,10 @@ app.get('/api/getGameFormData', (req, res) => {
 	}
 	const data = {}
 	const username = req.session.username
-	const week = req.body.week == null ? admin.currentWeek[req.session.campaign_id] : req.body.week
+	const buntaz = 44;
+	const week = req.body.week == null ? admin.currentWeek[req.session.campaign_id] : req.body.week;
+	const lastWeek= week - 1;
+	const cuntaz = 3;
 	data.username = username
 	data.week = week
 	Promise.all([
@@ -58,7 +61,7 @@ app.get('/api/getGameFormData', (req, res) => {
 				comp.name ASC
 			`
 			, [week, username, week]),
-		db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week])
+		db.get(`SELECT accounts_username, weeks_week, COALESCE(week_profit, 0) AS week_profit, COALESCE(total_profit, 0) AS total_profit  FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, lastWeek])
 	]).then((queries) => {
 		// [ 
 			//	{ 
@@ -71,6 +74,7 @@ app.get('/api/getGameFormData', (req, res) => {
 			//    strike: 0,
 			//  } , ... 
 		// ]
+		console.log("YEET" + buntaz + "IM BUNTAZ")
 		const company_sessions = queries[1]
 		//re-order to have the Resources at the end in the order TUTORIAL, GYM, MEDITATION
 		let ordered_companies = []
@@ -99,8 +103,8 @@ app.get('/api/getGameFormData', (req, res) => {
 		data.rows = all_companies
 		const profitsRow = queries[2]
 		if(profitsRow) {
-			data.total_profit = profitsRow.total_profit
-			data.week_profit = profitsRow.week_profit
+			data.total_profit = Math.floor(profitsRow.total_profit*100)/100
+			data.week_profit = Math.floor(profitsRow.week_profit*100)/100
 		}
 		else {
 			data.total_profit = 0
@@ -154,7 +158,7 @@ app.get('/api/getGameFormData', (req, res) => {
 							, [username, lastWeek]),
 				
 						db.get("SELECT * FROM user_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, lastWeek]),
-						db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week])
+						db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, lastWeek])
 					]
 				)
 				.then((queries) => {
@@ -202,23 +206,21 @@ app.get('/api/getGameFormData', (req, res) => {
 
 app.get('/api/getResults', (req, res) => {
 	const info = req.body
-	//const week = req.week !== undefined ? req.week : admin.currentWeek[req.session.campaign_id]
-	const week = 2
-	const lastWeek = week - 1
-	if(week === 1) {
-		res.status(200).end()
-		return;
-	}
+	const week = info.week !== undefined ? info.week : ((admin.currentWeek[req.session.campaign_id])-1)
+	
+	
 	const username = req.session.username
 	const campaign_id = req.session.campaign_id
 	const payload = {}
+	payload.username = username
 	Promise.all([
 		resultCalculations.getUserResults(username, week),
-		resultCalculations.getWeekLeaderboard(lastWeek, campaign_id),
-		resultCalculations.getAllTimeLeaderboard(lastWeek, campaign_id)
+		resultCalculations.getWeekLeaderboard(week, campaign_id),
+		resultCalculations.getAllTimeLeaderboard(week, campaign_id)
 	])
 	.then(data => {
-		payload.userRows = data[0]
+		payload.userRows = data[0].rows
+		payload.gameEvents = data[0].multipliers
 		payload.leaderboardWeek = data[1]
 		payload.leaderboardAll = data[2]
 		res.status(200).send(payload)

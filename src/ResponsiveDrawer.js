@@ -49,7 +49,7 @@ const useStyles = makeStyles(theme => ({
   },
 }));
 export const ResponsiveDrawer = withRouter((props) => {
-  const dummyCategories = ['Pages', 'Under', 'Construction']
+  const dummyCategories = ['Game', 'Results']
   const classes = useStyles();
   const theme = useTheme();
   const [mobileOpen, setMobileOpen] = React.useState(false);
@@ -57,9 +57,20 @@ export const ResponsiveDrawer = withRouter((props) => {
     isLoggedIn: false,
     isLoaded: false
   });
+  const [redirectToResults, setResultsRedirect] = React.useState(false)
+  const [redirectToGame, setGameRedirect] = React.useState(false)
   
   function handleDrawerToggle() {
     setMobileOpen(!mobileOpen)
+  }
+  function handleDrawerPageClick(text) {
+    if(text === dummyCategories[0]) { // game
+      setGameRedirect(true)
+      
+    }
+    else if(text === dummyCategories[1]) { // results
+      setResultsRedirect(true)
+    }
   }
   function logout(props) {
     fetch('/api/logout', { method: "POST" }).then(() => { setSite({isLoggedIn: false, isLoaded: true}) }).catch(() => { console.log("Couldn't log out") })
@@ -84,7 +95,7 @@ export const ResponsiveDrawer = withRouter((props) => {
     <div>
       <List>
         {dummyCategories.map((text, index) => (
-          <ListItem button key={text}>
+          <ListItem button key={text} onClick={(e) => {handleDrawerPageClick(e.target.outerText)}}>
             <ListItemText primary={text} />
           </ListItem>
         ))}
@@ -96,6 +107,14 @@ export const ResponsiveDrawer = withRouter((props) => {
 
   if (!site.isLoaded) {
     return (<div></div>)
+  }
+
+  if(redirectToResults && props.location.pathname !== "/results") {
+    return (<Redirect to="/results" />)
+  }
+
+  if(redirectToGame && props.location.pathname !== "/game") {
+    return (<Redirect to="/game" />)
   }
   
   if (!site.isLoggedIn) {

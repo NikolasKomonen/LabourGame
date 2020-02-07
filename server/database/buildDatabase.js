@@ -14,6 +14,7 @@ function dropTables() {
         DROP TABLE IF EXISTS 'weekly_excluded_companies';
         DROP TABLE IF EXISTS 'user_profit_weeks';
         DROP TABLE IF EXISTS 'user_strike_weeks';
+        DROP TABLE IF EXISTS 'user_total_company_hours';
         COMMIT;
     `)
 }
@@ -55,6 +56,7 @@ function createTables() {
             `CREATE TABLE IF NOT EXISTS weekly_excluded_companies (
                     weeks_week integer,
                     companies_id integer,
+                    went_bankrupt boolean DEFAULT FALSE,
                     PRIMARY KEY (weeks_week, companies_id),
                     FOREIGN KEY (weeks_week) REFERENCES weeks(week),
                     FOREIGN KEY (companies_id) REFERENCES companies(id)
@@ -217,12 +219,12 @@ function createTables() {
 
 }
 
-function insertCompanies(company = Company) {
+function insertCompanies(company = Company, id) {
     return db.run(
         `REPLACE INTO 
-            companies (name, brain, muscle, heart, starting_wage, regular_hours, supervisor_hours) 
-        VALUES (?, ?, ?, ?, ?, ?, ?);`,
-        [company.name, company.brain, company.muscle, company.heart, company.starting_wage, company.regular_hours, company.supervisor_hours])
+            companies
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+        [id, company.name, company.brain, company.muscle, company.heart, company.starting_wage, company.regular_hours, company.supervisor_hours])
 }
 
 function insertCompanyWageHistory(companies_id, campaigns_id, weeks_week, wage) {
@@ -253,16 +255,16 @@ function insertWeeks(companyName) {
 //     return db.run('INSERT INTO user_profit_weeks VALUES(?, ?, ?, ?)', [username, week, weekProfit, totalProfit]) 
 // }
 
-function insertEventCards(description, event_types_id, event_data, companies_id) {
-    return db.run('REPLACE INTO event_cards (description, event_types_id, event_data, companies_id) VALUES(?, ?, ?, ?);', [description, event_types_id, event_data, companies_id])
+function insertEventCards(id, description, event_types_id, event_data, companies_id) {
+    return db.run('REPLACE INTO event_cards VALUES(?, ?, ?, ?, ?);', [id, description, event_types_id, event_data, companies_id])
 }
 
-function insertEventTypes(description) {
-    return db.run('REPLACE INTO event_types (description) VALUES(?);', [description])
+function insertEventTypes(id, description) {
+    return db.run('REPLACE INTO event_types VALUES(?, ?);', [id, description])
 }
 
-function insertFixedEventCards(description, event_types_id, event_data, weeks_week, companies_id) {
-    return db.run('REPLACE INTO fixed_event_cards (description, event_types_id, event_data, weeks_week, companies_id) VALUES (?, ?, ?, ?, ?);', [description, event_types_id, event_data, weeks_week, companies_id])
+function insertFixedEventCards(id, description, event_types_id, event_data, weeks_week, companies_id) {
+    return db.run('REPLACE INTO fixed_event_cards VALUES (?, ?, ?, ?, ?, ?);', [id, description, event_types_id, event_data, weeks_week, companies_id])
 }
 
 // function insertUserCareerHistory(accounts_username, companies_id, weeks_week, is_supervisor) {
@@ -270,7 +272,7 @@ function insertFixedEventCards(description, event_types_id, event_data, weeks_we
 // }
 
 function insertWeeklyExcludedCompanies(weeks_week, companies_id) {
-    return db.run('REPLACE INTO weekly_excluded_companies VALUES (?, ?);', [weeks_week, companies_id])
+    return db.run('REPLACE INTO weekly_excluded_companies VALUES (?, ?, false);', [weeks_week, companies_id])
 }
 
 function insertCampaigns(campaign_name) {
@@ -319,7 +321,7 @@ const allCompanies = [
 const trainingCompanies = ['MEDITATION', 'GYM', 'TUTORIAL']
 const initialExcludedCompanies = ['Trashpanda', 'Friend.ly']
 
-function insertMockData() {
+function insertBaseData() {
 
     db.run("BEGIN TRANSACTION;")
     .then(() => {
@@ -342,8 +344,8 @@ function insertMockData() {
         allInserts.concat(gameWeeks)
 
         // Insert into table: companies
-        const allCompanyInserts = allCompanies.map((company) => {
-            return insertCompanies(company)
+        const allCompanyInserts = allCompanies.map((company, index) => {
+            return insertCompanies(company, index + 1)
         })
         allInserts.concat(allCompanyInserts)
 
@@ -353,69 +355,51 @@ function insertMockData() {
             for(let i = 0; i < allCompanies.length; i++) {
                 const company = allCompanies[i]
                 if(name === company.name) {
-                    for(let w = 1; w <= totalGameWeeks; w++) {
-                        excludedCompanyInserts.push(insertWeeklyExcludedCompanies(w, i+1))
-                    }
+                    excludedCompanyInserts.push(insertWeeklyExcludedCompanies(1, i+1))
                     break;
                 } 
             }
         })
         allInserts.concat(excludedCompanyInserts)
 
-        // Insert into table: company_wage_history (initial week 1 wages)
-        const wageHistoryInserts = []
-        allCompanies.forEach((company, i) => {
-            const companyID = i+1
-            const startingWage = company.starting_wage
-            const week = 1
-            if(trainingCompanies.includes(company.name) === false) {
-                campaigns.forEach((name, i2) => {
-                    const campaignID = i2+1
-                    wageHistoryInserts.push(insertCompanyWageHistory(companyID, campaignID, week, startingWage))
-                })
-            }
-            
-        })
-        allInserts.concat(wageHistoryInserts)
-
         const eventInsertions = [
             // Event Types
-            insertEventTypes("Percentage Multiplier"), // 1
-            insertEventTypes("Out of Business"), // 2
+            insertEventTypes(1, "Percentage Multiplier"),
+            insertEventTypes(2, "Out of Business"),
             //Event Cards
-            insertEventCards("An epidemic of viral gastroenteritis has hit dogs across town. Poopora has got nothing to do with this, but dog owners are blaming Poopers for their beloved pup’s vomit. All Poopers get downrated and lose their weekly pay.", 1, 0, 1),
-            insertEventCards("Hackers have breached into CWB’s database and outed all Cammers (and customers) by publishing their names and addresses. If you are working for CWB this week your income drops 20% as some customers move to a 'more secure' camming sites.", 1, 0.2, 2),
-            insertEventCards("Canadian universities implement new anti-plagiarism software that can detect Robo A+ essays. The company’s customers are lined up in front of the Dean’s office and won’t pay their bills this week.", 1, 0, 7),
-            insertEventCards("Construction work! The new mayor is dismantling all bike lanes, Skip the Pusher workers have to slow down and deliver 20% fewer orders per hour.", 1, -0.2, 8),
-            insertEventCards("Too many dxxxs! An abrupt spike in unsolicited dxxx picks on WhutsUpp is just too much for Ds to take. If you were working for Flag That D this week, you need to take a break and lose your wage (but keep working for other companies).", 1, 0, 5),
-            insertEventCards("Code Monkey signs a big contract with Boogle to write new software which will be used to make decisions on behalf of Toronto and Vancouver’s city councils. Monkeys receive a +20% bump.", 1, 0.2, 10),
-            insertEventCards("The City introduces new regulation to curb illegal hotels and rentals. SofaCrashers need to be careful and reduce their customers. This decreases their income by 20%.", 1, -0.2, 9),
-            insertEventCards("It’s a tough job market. Precarity and unpredictable wages increase the need for emotional support, which bumps Friend.ly customers by 20%.", 1, 0.2, 11),
-            insertEventCards("Following a hype that made everyone enroll in Computer Science four years ago, the market is flooded by new programmers. Code Monkey reduces its pay by 20%.", 1, -0.2, 10),
-            insertEventCards("The new federal government changed the definition of inappropriate content. Now social media platforms need to filter out pretty much any exposed body part. Flag that D increases its wages by 20% to attract more workers.", 1, 0.2, 5),
-            insertEventCards("Teachers’ strike! All class trips are cancelled, and WCs (Cheesewagon) lose their side gigs (-20%).", 1, -0.2, 3),
-            insertEventCards("Thanks to a miraculous series of events, student debt is cancelled. University students across the province are happy and Friend.ly loses a sizeable chunk of its customers. Friends make 20% less than usual. ", 1, -0.2, 11),
-            insertEventCards("A whistleblower leaks thousands of conversations from Friend.ly. The company promised they were not recording chats, but it looks like customer data was just too valuable. Friend.ly goes offline forever in order to focus on the ensuing lawsuit.", 2, null, 11),
-            insertEventCards("The province has changed its policy for pot commerce. From now on, only a newly formed company owned by the Premier’s family can operate home delivery apps. Skip the Pusher disconnects all its workers and moves to P.E.I. ", 2, null, 8),
-            insertEventCards("SofaCrash investors realize it has been a scam since day one: all profits were diverted to a tax haven in Barbados. They pull all their money and the company folds. ", 2, null, 9),
-            insertEventCards("Elon Musk’s self-made nephew and genius startupper rethinks his career ambitions. He closes Code Monkey and reinvests the money in an “Ontario Poutine” food truck chain he plans to open in Quebec. ", 2, null, 10),
-            insertEventCards("Hungry for a job and building upon their experience with the Queen’s Royal Corgis, Meghan and Harry launch a new luxury dog walking service. Poopora loses its client base and goes bankrupt. ", 2, null, 1),
-            insertEventCards("Bay Street Angel investors who funded High Sugar never actually believed that such a niche company would succeed. They manage to unload junk shares on people’s saving accounts before it goes bankrupt.", 2, null, 6),
-            insertEventCards("Online sex experiences a major market concentration. Most websites are absorbed by Montreal giant DirtHub, including Cam with Benefits. The service is taken offline.", 2, null, 2),
-            insertEventCards("The City runs out of money and cuts its recycling and composting programs. Garbage sorting goes back to being so easy that TrashPanda loses most of its revenues. It immediately files for bankruptcy.", 2, null, 12),
-            insertEventCards("Robo A+ purchases MyBrainOnBubbleTea, a new machine learning start-up that has automated essay writing. All jobs are taken offline. On Peddit, anonymous students report that their grades have gone up.", 2, null, 7),
-            insertEventCards("Berlin is here! The subway starts running 24/7 and CheeseWagon’s cashflow dips. The company folds immediately and sells all its school buses to Scouts Canada.", 2, null, 3),
-            insertEventCards("Justin Trudeau reveals that his dog Kenzie loves being walked by Poopers. The hype boosts work for the app, which raises its wages by 20%.", 1, 0.2, 1),
-            insertEventCards("New city bylaw: the city adds four new types of garbage bins. So difficult! People hire more Pandas to sort their waste, and the pay goes up by 20%.", 1, 0.2, 12),
-            insertEventCards("A major snowstorm locks everyone at home for the entire weekend. There is nothing else to do but to order more pot from Skip the Pusher. Pushers risk their lives on the slippery roads but make an extra 20%.", 1, 0.2, 8),
-            insertEventCards("Dim’s introduces new robots in its warehouses. Each can pack one hundred potato chips bags per minute. There are no layoffs, but DimBits’ wages are 20% lower than usual.", 1, -0.2, 4),
+            insertEventCards(1, "An epidemic of viral gastroenteritis has hit dogs across town. Poopora has got nothing to do with this, but dog owners are blaming Poopers for their beloved pup’s vomit. All Poopers get downrated and lose their weekly pay.", 1, 0, 1),
+            insertEventCards(2, "Hackers have breached into CWB’s database and outed all Cammers (and customers) by publishing their names and addresses. If you are working for CWB this week your income drops 20% as some customers move to a 'more secure' camming sites.", 1, 0.2, 2),
+            insertEventCards(3, "Canadian universities implement new anti-plagiarism software that can detect Robo A+ essays. The company’s customers are lined up in front of the Dean’s office and won’t pay their bills this week.", 1, 0, 7),
+            insertEventCards(4, "Construction work! The new mayor is dismantling all bike lanes, Skip the Pusher workers have to slow down and deliver 20% fewer orders per hour.", 1, -0.2, 8),
+            insertEventCards(5, "Too many dxxxs! An abrupt spike in unsolicited dxxx picks on WhutsUpp is just too much for Ds to take. If you were working for Flag That D this week, you need to take a break and lose your wage (but keep working for other companies).", 1, 0, 5),
+            insertEventCards(6, "Code Monkey signs a big contract with Boogle to write new software which will be used to make decisions on behalf of Toronto and Vancouver’s city councils. Monkeys receive a +20% bump.", 1, 0.2, 10),
+            insertEventCards(7, "The City introduces new regulation to curb illegal hotels and rentals. SofaCrashers need to be careful and reduce their customers. This decreases their income by 20%.", 1, -0.2, 9),
+            insertEventCards(8, "It’s a tough job market. Precarity and unpredictable wages increase the need for emotional support, which bumps Friend.ly customers by 20%.", 1, 0.2, 11),
+            insertEventCards(9, "Following a hype that made everyone enroll in Computer Science four years ago, the market is flooded by new programmers. Code Monkey reduces its pay by 20%.", 1, -0.2, 10),
+            insertEventCards(10, "The new federal government changed the definition of inappropriate content. Now social media platforms need to filter out pretty much any exposed body part. Flag that D increases its wages by 20% to attract more workers.", 1, 0.2, 5),
+            insertEventCards(11, "Teachers’ strike! All class trips are cancelled, and WCs (Cheesewagon) lose their side gigs (-20%).", 1, -0.2, 3),
+            insertEventCards(12, "Thanks to a miraculous series of events, student debt is cancelled. University students across the province are happy and Friend.ly loses a sizeable chunk of its customers. Friends make 20% less than usual. ", 1, -0.2, 11),
+            insertEventCards(13, "A whistleblower leaks thousands of conversations from Friend.ly. The company promised they were not recording chats, but it looks like customer data was just too valuable. Friend.ly goes offline forever in order to focus on the ensuing lawsuit.", 2, null, 11),
+            insertEventCards(14, "The province has changed its policy for pot commerce. From now on, only a newly formed company owned by the Premier’s family can operate home delivery apps. Skip the Pusher disconnects all its workers and moves to P.E.I. ", 2, null, 8),
+            insertEventCards(15, "SofaCrash investors realize it has been a scam since day one: all profits were diverted to a tax haven in Barbados. They pull all their money and the company folds. ", 2, null, 9),
+            insertEventCards(16, "Elon Musk’s self-made nephew and genius startupper rethinks his career ambitions. He closes Code Monkey and reinvests the money in an “Ontario Poutine” food truck chain he plans to open in Quebec. ", 2, null, 10),
+            insertEventCards(17, "Hungry for a job and building upon their experience with the Queen’s Royal Corgis, Meghan and Harry launch a new luxury dog walking service. Poopora loses its client base and goes bankrupt. ", 2, null, 1),
+            insertEventCards(18, "Bay Street Angel investors who funded High Sugar never actually believed that such a niche company would succeed. They manage to unload junk shares on people’s saving accounts before it goes bankrupt.", 2, null, 6),
+            insertEventCards(19, "Online sex experiences a major market concentration. Most websites are absorbed by Montreal giant DirtHub, including Cam with Benefits. The service is taken offline.", 2, null, 2),
+            insertEventCards(20, "The City runs out of money and cuts its recycling and composting programs. Garbage sorting goes back to being so easy that TrashPanda loses most of its revenues. It immediately files for bankruptcy.", 2, null, 12),
+            insertEventCards(21, "Robo A+ purchases MyBrainOnBubbleTea, a new machine learning start-up that has automated essay writing. All jobs are taken offline. On Peddit, anonymous students report that their grades have gone up.", 2, null, 7),
+            insertEventCards(22, "Berlin is here! The subway starts running 24/7 and CheeseWagon’s cashflow dips. The company folds immediately and sells all its school buses to Scouts Canada.", 2, null, 3),
+            insertEventCards(23, "Justin Trudeau reveals that his dog Kenzie loves being walked by Poopers. The hype boosts work for the app, which raises its wages by 20%.", 1, 0.2, 1),
+            insertEventCards(24, "New city bylaw: the city adds four new types of garbage bins. So difficult! People hire more Pandas to sort their waste, and the pay goes up by 20%.", 1, 0.2, 12),
+            insertEventCards(25, "A major snowstorm locks everyone at home for the entire weekend. There is nothing else to do but to order more pot from Skip the Pusher. Pushers risk their lives on the slippery roads but make an extra 20%.", 1, 0.2, 8),
+            insertEventCards(26, "Dim’s introduces new robots in its warehouses. Each can pack one hundred potato chips bags per minute. There are no layoffs, but DimBits’ wages are 20% lower than usual.", 1, -0.2, 4),
             // Fixed Event Cards
-            insertFixedEventCards("Black Tuesday! Sales are hot today. Dim’s has a special offer with new potato chip flavours and discounted cigarettes. Pay goes up 20% for all DimBits.", 1, 0.2, 3, 4),
-            insertFixedEventCards("Valentine’s Day is coming up. Lovers order tons of heart-shaped donuts from High Sugar, and pay goes up 20%.", 1, 0.2, 4, 6),
-            insertFixedEventCards("Singles buy lots of love from CWB and Cammers’ pay goes up 20%.", 1, 0.2, 4, 2),
-            insertFixedEventCards("Most mid-term essays are due this week. Robo A+ has a spike in orders and pays 20% more.", 1, 0.2, 6, 7),
-            insertFixedEventCards("Long weekend: everyone is out of town, taking their garbage with them. TrashPanda cuts work by 20%.", 1, -0.2, 8, 12),
-            insertFixedEventCards("St. Patrick’s Day. Party time for the Irish, and someone has to drive them around all night. Cheesewagon pays 20% more.", 1, 0.2, 9, 3)
+            insertFixedEventCards(1, "Black Tuesday! Sales are hot today. Dim’s has a special offer with new potato chip flavours and discounted cigarettes. Pay goes up 20% for all DimBits.", 1, 0.2, 1, 4),
+            insertFixedEventCards(2, "Valentine’s Day is coming up. Lovers order tons of heart-shaped donuts from High Sugar, and pay goes up 20%.", 1, 0.2, 2, 6),
+            insertFixedEventCards(3, "Singles buy lots of love from CWB and Cammers’ pay goes up 20%.", 1, 0.2, 2, 2),
+            insertFixedEventCards(4, "Most mid-term essays are due this week. Robo A+ has a spike in orders and pays 20% more.", 1, 0.2, 4, 7),
+            insertFixedEventCards(5, "Long weekend: everyone is out of town, taking their garbage with them. TrashPanda cuts work by 20%.", 1, -0.2, 6, 12),
+            insertFixedEventCards(6, "St. Patrick’s Day. Party time for the Irish, and someone has to drive them around all night. Cheesewagon pays 20% more.", 1, 0.2, 7, 3)
         ]
         allInserts.concat(eventInsertions)
 
@@ -434,6 +418,6 @@ db.startDB()
         return createTables()
     })
     .then(() => {
-        return insertMockData()
+        return insertBaseData()
     })
     .then(() => db.close())

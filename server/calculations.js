@@ -440,20 +440,20 @@ class Calculations {
 
     getRandomEventCard() {
         // Check if 2 Bankrupcy cards were played
-        
+        const bankrupcyCardLimit = 12-10 // ALL_NON_RESOURCE_COMPANIES-PLAYABLE_COMPANIES
         return this.db.get(`SELECT count(*) AS total FROM event_card_history JOIN event_cards ON event_card_history.event_cards_id=event_cards.id WHERE event_types_id=2`)
         .then(count => {
-            const total = count.total
-            if(total >= 2) {
-                return true
+            const total = count.total 
+            if(total >= bankrupcyCardLimit) { // >= 2
+                return false
             }
-            return false
+            return true
         })
-        .then((dontDrawBankrupcyCard) => {
-            if(dontDrawBankrupcyCard) {
-                return this.db.get(`SELECT * FROM event_cards WHERE event_types_id!=2 AND id NOT IN (SELECT event_cards_id FROM event_card_history)`)
+        .then((drawBankrupcyCard) => {
+            if(drawBankrupcyCard) {
+                return this.db.get(`SELECT * FROM event_cards WHERE id NOT IN (SELECT event_cards_id FROM event_card_history)`)    
             }
-            return this.db.get(`SELECT * FROM event_cards WHERE id NOT IN (SELECT event_cards_id FROM event_card_history)`)
+            return this.db.get(`SELECT * FROM event_cards WHERE event_types_id!=2 AND id NOT IN (SELECT event_cards_id FROM event_card_history)`)
         })
     }
 
@@ -538,7 +538,7 @@ class Calculations {
                 queryQueue.push(
                     // Choose Random company from all currently excluded ones and make it available for next week
                     this.db.get(`
-                            SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=? AND went_bankrupt=0 ORDER BY RANDOM() LIMIT 1;
+                            SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=? AND went_bankrupt=0 ORDER BY companies_id ASC LIMIT 1;
                         `, [week])
                     .then((query) => {
                         const joiningCompanyID = query.companies_id
@@ -811,11 +811,11 @@ class Calculations {
 }
 
 
-// const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
-// db.startDB().then(() => {
-//     const c = new Calculations(db);
-//     c.calculateTotalProfitsVerified(2, 1)
+const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
+db.startDB().then(() => {
+    const c = new Calculations(db);
+    c.calculateTotalProfitsVerified(2, 1)
 
-// })
+})
 
 module.exports = Calculations

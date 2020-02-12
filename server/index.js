@@ -8,7 +8,10 @@ let db = new SQL(path.join(__dirname, 'database/dbFile.sqlite'));
 db.startDB().then(() => {db.run("PRAGMA foreign_keys=ON;")})
 const session = require('express-session')
 const encryption = require('./encryption')
-const admin = require('./administration')
+const GameVariables = require('./GameVariables')
+
+// @@@@@@@@@@@@@@@@@@@@ Set The Game Week Here
+const gv = new GameVariables(3)
 const Calculations = require('./calculations')
 const resultCalculations = new Calculations(db)
 
@@ -28,7 +31,7 @@ app.get('/api/getGameFormData', (req, res) => {
 	}
 	const data = {}
 	const username = req.session.username
-	const week = req.body.week == null ? admin.currentWeek[req.session.campaign_id] : req.body.week;
+	const week = gv.getGivenWeek(req)
 	const lastWeek= week - 1;
 	
 	data.username = username
@@ -203,10 +206,11 @@ app.get('/api/getGameFormData', (req, res) => {
 })
 
 app.get('/api/getResults', (req, res) => {
-	const info = req.body
-	const week = info.week !== undefined ? info.week : ((admin.currentWeek[req.session.campaign_id])-1)
-	
-	
+	const week = gv.getGivenOrPreviousWeek(req)
+	if(week === 0) {
+		res.status(200).end()
+	}
+	const nextWeek = week + 1
 	const username = req.session.username
 	const campaign_id = req.session.campaign_id
 	const payload = {}
@@ -214,13 +218,15 @@ app.get('/api/getResults', (req, res) => {
 	Promise.all([
 		resultCalculations.getUserResults(username, week),
 		resultCalculations.getWeekLeaderboard(week, campaign_id),
-		resultCalculations.getAllTimeLeaderboard(week, campaign_id)
+		resultCalculations.getAllTimeLeaderboard(week, campaign_id),
+		resultCalculations.getResourcesForWeek(nextWeek, username)
 	])
 	.then(data => {
 		payload.userRows = data[0].rows
 		payload.gameEvents = data[0].multipliers
 		payload.leaderboardWeek = data[1]
 		payload.leaderboardAll = data[2]
+		payload.resources = data[3]
 		res.status(200).send(payload)
 		return
 	})

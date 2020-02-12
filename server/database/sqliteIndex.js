@@ -1,11 +1,10 @@
 const sqlite3 = require('sqlite3').verbose();
-
+const fs = require('fs')
+const path = require('path')
 class SQL {
     constructor(dbFilePath) {
         this.dbFilePath = dbFilePath
     }
-
-
     
     startDB() {
         return new Promise((resolve, reject) => {
@@ -92,8 +91,6 @@ class SQL {
             })
         })
     }
-
-
 
     close() {
         this.db.close()

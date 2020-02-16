@@ -86,7 +86,7 @@ class Calculations {
         return weekWage.then(data => {
             // Edge case of a company going bankrupt and the new company coming in when it is not the first week.
             // We need to grab the initial wages because nothing else exists yet
-            if(data == undefined) { 
+            if (data == undefined) {
                 return this.getInitialWage(companies_id)
             }
             return data
@@ -96,7 +96,7 @@ class Calculations {
 
     calculateWageForCompany(baseline, week, companies_id, campaigns_id) {
         return new Promise((resolve, reject) => {
-            const calculations = [ 
+            const calculations = [
                 this.getWage(week, companies_id, campaigns_id),
                 this.getTotalCompanyHours(week, companies_id, campaigns_id)
             ]
@@ -336,20 +336,26 @@ class Calculations {
      */
     dbUpdateCareersTable(campaigns_id, week) {
         const nextWeek = week + 1
+        const lastWeek = week - 1
         const supervisorCandidates = {} // {company_id: []}
         const noCareerHistory = {} // holds 
-        const statementsToRun = []
-        return this.db.all(`
-            SELECT
-                tohist.accounts_username AS accounts_username, tohist.companies_id AS companies_id, is_supervisor, reached_supervisor, total_hours, regular_hours, supervisor_hours, selec.hours AS last_week_hours
-            FROM
+        let statementsToRun = []
+
+
+        // Clear out any future regular careers set previously
+        return this.db.run("DELETE FROM user_career_history WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) AND weeks_week>=? AND is_supervisor IS FALSE", [campaigns_id, nextWeek])
+            .then(() => {
+                return this.db.all(`
+                SELECT
+                    tohist.accounts_username AS accounts_username, tohist.companies_id AS companies_id, is_supervisor, reached_supervisor, total_hours, regular_hours, supervisor_hours, selec.hours AS last_week_hours, career_week
+                FROM
                 (
                     SELECT 
-                        totals.accounts_username AS accounts_username, totals.companies_id AS companies_id, total_hours, is_supervisor, reached_supervisor 
+                        totals.accounts_username AS accounts_username, totals.companies_id AS companies_id, total_hours, is_supervisor, reached_supervisor, hist.career_week AS career_week
                     FROM 
                             (SELECT * FROM user_total_company_hours WHERE user_total_company_hours.accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?)) AS totals 
                         LEFT JOIN 
-                            (SELECT *, max(weeks_week) FROM user_career_history GROUP BY accounts_username, companies_id) AS hist
+                            (SELECT *, max(weeks_week) AS career_week FROM (SELECT * FROM user_career_history WHERE weeks_week <= ?) GROUP BY accounts_username, companies_id) AS hist
                         ON 
                             totals.accounts_username=hist.accounts_username 
                             AND
@@ -366,13 +372,10 @@ class Calculations {
                     tohist.accounts_username=selec.accounts_username
                     AND
                     tohist.companies_id=selec.companies_id
-                `, [campaigns_id, week - 1])
+                `, [campaigns_id, nextWeek, lastWeek])
+            })
             .then((rows) => {
                 return this.db.run("BEGIN TRANSACTION;")
-                    .then(() => {
-                        // Clear out any future careers set previously
-                        return this.db.run("DELETE FROM user_career_history WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) AND weeks_week>=?", [campaigns_id, nextWeek])
-                    })
                     .then(() => {
                         rows.forEach((row) => {
                             let c = supervisorCandidates[row.companies_id]
@@ -382,12 +385,14 @@ class Calculations {
                                 c.candidates = []
                                 c.isSupervisorChosen = false
                             }
-                            if (c.isSupervisorChosen) {
-                                return;
-                            }
+
+                            const userIsSupervisor = row.is_supervisor
 
                             const totalHours = row.total_hours
                             if (totalHours < row.regular_hours) { // is Nothing
+                                if (userIsSupervisor) {
+                                    statementsToRun.push(this.db.run('DELETE FROM user_career_history WHERE accounts_username=? AND companies_id=? AND weeks_week=?', [row.accounts_username, row.companies_id, row.career_week]))
+                                }
                                 return;
                             }
 
@@ -398,42 +403,79 @@ class Calculations {
                             }
 
                             if (totalHours >= row.supervisor_hours) { // is eligible for Supervisor
+                                if (c.isSupervisorChosen) {
+                                    if (userIsSupervisor) {
+                                        statementsToRun.push(this.db.run('DELETE FROM user_career_history WHERE accounts_username=? AND companies_id=? AND weeks_week=?', [row.accounts_username, row.companies_id, row.career_week]))
+                                    }
+                                    if (row.is_supervisor === null) {
+                                        delete noCareerHistory[noCareerKey]
+                                        statementsToRun.push(this.db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)", [row.accounts_username, row.companies_id, nextWeek, false, false]))
+                                    }
+                                    return;
+                                }
                                 if (row.is_supervisor) {
-                                    if (row.last_week_hours != undefined && !row.last_week_hours) { // did not work last week, lose their supervisor position
+                                    if (week > 1 && row.last_week_hours != undefined && !row.last_week_hours) { // did not work last week, lose their supervisor position
                                         statementsToRun.push(this.db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)", [row.accounts_username, row.companies_id, nextWeek, false, true]))
                                         return
                                     }
                                     else { // keep their supervisor position, making everything else meaningless
                                         c.isSupervisorChosen = true
-                                        c.candidates = [] // clear out candidates from queue
                                         return
                                     }
                                 }
                                 if (row.reached_supervisor) { // not a supervisor but reached it previously
+                                    if (userIsSupervisor) {
+                                        statementsToRun.push(this.db.run('DELETE FROM user_career_history WHERE accounts_username=? AND companies_id=? AND weeks_week=?', [row.accounts_username, row.companies_id, row.career_week]))
+                                    }
                                     return;
                                 }
                                 c.candidates.push(row) // is candidate for supervisor
                             }
                             else { //is eligible for Regular
+                                if (userIsSupervisor) {
+                                    statementsToRun.push(this.db.run('DELETE FROM user_career_history WHERE accounts_username=? AND companies_id=? AND weeks_week=?', [row.accounts_username, row.companies_id, row.career_week]))
+                                }
                                 delete noCareerHistory[noCareerKey]
                                 statementsToRun.push(this.db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)", [row.accounts_username, row.companies_id, nextWeek, false, false]))
                             }
                         })
-
-                        // These are the candidates who ('won'/were the only ones) to become supervisor
-                        Object.keys(supervisorCandidates).forEach((key) => {
-                            const candidates = supervisorCandidates[key].candidates
-                            const length = candidates.length
-                            const newSupervisorIndex = Math.floor(Math.random() * Math.floor(length - 1))
-                            if (newSupervisorIndex < 0) {
-                                return
-                            }
-                            const newSupervisor = candidates[newSupervisorIndex]
-                            const noCareerKey = newSupervisor.accounts_username + newSupervisor.companies_id
-                            delete noCareerHistory[noCareerKey]
-                            statementsToRun.push(this.db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)", [newSupervisor.accounts_username, newSupervisor.companies_id, nextWeek, true, true]))
-                        })
                         return Promise.all(statementsToRun)
+                            .then(() => {
+                                statementsToRun = []
+                                // These are the candidates who ('won'/were the only ones) to become supervisor
+                                Object.keys(supervisorCandidates).forEach((key) => {
+                                    const candidates = supervisorCandidates[key].candidates
+                                    const length = candidates.length
+                                    const newSupervisorIndex = Math.floor(Math.random() * Math.floor(length - 1))
+                                    if (newSupervisorIndex < 0) {
+                                        return
+                                    }
+
+                                    const newSupervisor = candidates[newSupervisorIndex]
+                                    const noCareerKey = newSupervisor.accounts_username + newSupervisor.companies_id
+                                    delete noCareerHistory[noCareerKey]
+                                    statementsToRun.push(this.db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)", [newSupervisor.accounts_username, newSupervisor.companies_id, nextWeek, true, true]))
+
+                                    // make all other candidates regulars if they do no have a career history at the company
+                                    candidates.forEach(candidate => {
+                                        const newCareerKey = candidate.accounts_username + candidate.companies_id
+                                        const info = noCareerHistory[newCareerKey]
+                                        if (info) {
+                                            statementsToRun.push(this.db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)", [info.accounts_username, info.companies_id, nextWeek, false, false]))
+                                        }
+                                    })
+
+                                    //Todo: wipe all future events of a supervisor at this company
+                                    statementsToRun.push(this.db.run(`DELETE FROM user_career_history WHERE is_supervisor=1 AND companies_id=? AND weeks_week>=?`, [newSupervisor.companies_id, nextWeek + 1]))
+                                })
+
+
+                            })
+                            .then(() => {
+                                return Promise.all(statementsToRun)
+                            })
+
+
                     })
                     .then(() => {
                         return this.db.run("COMMIT;")
@@ -456,7 +498,7 @@ class Calculations {
             // // 2c) Company Strike
             this.db.all("SELECT companies_id, workers_striked, total_workers FROM user_strike_weeks WHERE campaigns_id=? and weeks_week=? ORDER BY companies_id;", [campaigns_id, week]),
             // // 2d) Career Boost
-            this.getCareers(campaigns_id)
+            this.getCareers(campaigns_id, week)
 
         ])
     }
@@ -468,8 +510,8 @@ class Calculations {
      * it ensures the user_career_history table is up to date
      * @param {*} campaigns_id 
      */
-    getCareers(campaigns_id) {
-        return this.db.all("SELECT accounts_username, name AS company_name, companies_id, max(weeks_week), is_supervisor FROM user_career_history JOIN companies ON companies_id=id WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) GROUP BY accounts_username ORDER BY accounts_username;", [campaigns_id])
+    getCareers(campaigns_id, week) {
+        return this.db.all("SELECT accounts_username, name AS company_name, companies_id, max(weeks_week), is_supervisor FROM user_career_history JOIN companies ON companies_id=id WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) AND weeks_week<=? GROUP BY accounts_username, companies_id ORDER BY accounts_username, company_name;", [campaigns_id, week])
     }
 
     getRandomEventCard() {
@@ -718,7 +760,7 @@ class Calculations {
                 }
                 else {
                     const wageChange = eventCard.event_data
-                    if(wageChange === 0) { // Lose pay for this week
+                    if (wageChange === 0) { // Lose pay for this week
                         multiplier = 0
                         noPayThisWeek = true
                     }
@@ -856,7 +898,7 @@ class Calculations {
 // db.startDB().then(() => {
 //     const c = new Calculations(db);
 //     c.calculateTotalProfitsVerified(2, 2)
-    
+
 
 // })
 

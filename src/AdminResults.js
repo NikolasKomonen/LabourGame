@@ -1,5 +1,5 @@
 import React, { Component } from 'react'
-import { Box, Select, Typography, MenuItem } from '@material-ui/core'
+import { Box, Select, Typography, MenuItem, Button } from '@material-ui/core'
 import { withStyles } from '@material-ui/core/styles';
 import Table from '@material-ui/core/Table';
 import TableBody from '@material-ui/core/TableBody';
@@ -35,7 +35,7 @@ const styles = withStyles({
     }
 });
 
-class ResultsSection extends Component {
+class AdminResults extends Component {
     constructor() {
         super()
         this.state = {
@@ -75,7 +75,6 @@ class ResultsSection extends Component {
                 tempState.leaderboardWeek = data.leaderboardWeek
                 tempState.leaderboardAll = data.leaderboardAll
                 tempState.isLoaded = true
-                tempState.username = data.username
                 tempState.fixedEvents = data.gameEvents[0]
                 tempState.eventCard = data.gameEvents[1]
                 tempState.strikeEvents = data.gameEvents[2]
@@ -90,6 +89,10 @@ class ResultsSection extends Component {
     changeCurrentWeek(week) {
         this.fetchResults(week)
     }
+
+    logout() {
+        fetch('/api/logout', { method: "POST" }).then(() => {this.props.history.push('/login')}).catch(() => { console.log("Couldn't log out") })
+      }
 
 
 
@@ -116,11 +119,6 @@ class ResultsSection extends Component {
             careerEvents.push(<br></br>)
         })
 
-        let nextWeekResources = []
-        nextWeekResources.push(<Typography className="pl-5" variant="h6">Brain <small>{this.state.nextWeekResources.available_brain}</small></Typography>)
-        nextWeekResources.push(<Typography className="pl-5" variant="h6">Muscle <small>{this.state.nextWeekResources.available_muscle}</small></Typography>)
-        nextWeekResources.push(<Typography className="pl-5" variant="h6">Heart <small>{this.state.nextWeekResources.available_heart}</small></Typography>)
-
         const gameIDOptions = []
         for (let i = this.state.latestResultsWeek; i > 0; i--) {
             let value = i
@@ -133,6 +131,11 @@ class ResultsSection extends Component {
 
         return (
             <Box>
+                
+                <div>
+                    <Button variant="contained" onClick={() => { this.logout() }}>Logout</Button>
+                </div>
+                
                 <Box>
                     <Typography variant="h2">Week {this.state.currentResultsWeek} Results</Typography>
                 </Box>
@@ -164,42 +167,6 @@ class ResultsSection extends Component {
                     <Typography>{careerEvents}</Typography>
                     <br></br>
                 </Box>
-
-                <Box>
-                    <Typography variant="h5">Next Week Resources</Typography>
-                    {nextWeekResources}
-                </Box>
-                <TableContainer component={Paper}>
-                    <Table className={this.props.classes.table} size="medium" style={{ tableLayout: "fixed" }} aria-label="a dense table">
-                        <TableHead>
-                            <TableRow className={this.props.classes.headRow}>
-                                <TableCell className={this.props.classes.headText} align="right">Company</TableCell>
-                                <TableCell className={this.props.classes.headText} align="right">Wage(Modifier)</TableCell>
-                                <TableCell className={this.props.classes.headText} align="right">Hours Worked</TableCell>
-                                <TableCell className={this.props.classes.headText} align="right">Pay</TableCell>
-                                <TableCell className={this.props.classes.headText} align="right">Total Hours Worked</TableCell>
-                                <TableCell className={this.props.classes.headText} align="right">Career</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {this.state.userRows.map(row => {
-
-                                return (
-                                    <TableRow key={row.name}>
-
-                                        <TableCell align="right" color="white">{row.name}</TableCell>
-                                        <TableCell align="right">${row.wage}</TableCell>
-                                        <TableCell className={row.hours > 0 ? this.props.classes.boldData : ""} align="right">{row.hours} Hrs</TableCell>
-                                        <TableCell className={row.hours > 0 ? this.props.classes.boldData : ""} align="right">${row.pay}</TableCell>
-                                        <TableCell align="right">{row.total_hours} Hrs</TableCell>
-                                        <TableCell align="right">{row.career}</TableCell>
-                                    </TableRow>
-                                )
-                            })}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-
 
                 <div className="container">
                     <div className="row">
@@ -257,4 +224,4 @@ class ResultsSection extends Component {
     }
 }
 
-export default styles(ResultsSection)
+export default styles(AdminResults)

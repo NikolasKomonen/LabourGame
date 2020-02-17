@@ -226,11 +226,11 @@ class Calculations {
     }
 
     getWeekLeaderboard(week, campaign_id) {
-        return this.db.all('SELECT accounts_username AS username, printf("%.2f", week_profit) AS week_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY week_profit DESC;', [week, campaign_id])
+        return this.db.all('SELECT accounts_username AS username, printf("%.2f", week_profit) AS week_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY week_profit+0 DESC;', [week, campaign_id])
     }
 
     getAllTimeLeaderboard(week, campaign_id) {
-        return this.db.all('SELECT accounts_username AS username, printf("%.2f", total_profit) AS total_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY total_profit DESC;', [week, campaign_id])
+        return this.db.all('SELECT accounts_username AS username, printf("%.2f", total_profit) AS total_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY total_profit+0 DESC;', [week, campaign_id])
     }
 
     /**

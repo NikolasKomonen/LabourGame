@@ -83,8 +83,6 @@ export const ResponsiveDrawer = withRouter((props) => {
       data.json()
     ))
       .then((data) => {
-        // Order is important since each following like triggers the re-render
-        // and we need to set our logged in status before indicating loading is done
         setSite({
           isLoaded: true,
           isLoggedIn: data.isLoggedIn

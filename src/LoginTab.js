@@ -58,12 +58,22 @@ class LoginTab extends Component {
             headers: {
                 'Content-Type': 'application/json'
             }
-        }).then((res) => {
-            if (res.status === 200) {
+        })
+        .then((res) => {
+            return Promise.all([Promise.resolve(res.status), res.json()])
+        })
+        .then((res) => {
+            const status = res[0]
+            const body = res[1]
+            if (status === 200) {
+                if(body.isAdmin) {
+                    this.props.history.push('/adminResults')
+                    return
+                }
                 this.props.history.push('/game')
                 return;
             }
-            return (res.text())
+            return body.message
 
         }).then((text) => {
             if (text) {

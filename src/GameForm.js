@@ -1,6 +1,6 @@
 import React from 'react'
 import Typography from '@material-ui/core/Typography'
-import { Box, Button, withStyles, } from '@material-ui/core';
+import { Box, Button, withStyles, Select, MenuItem } from '@material-ui/core';
 import GameRow from './GameRow'
 import GameTotals from './GameTotals'
 import indigo from '@material-ui/core/colors/indigo'
@@ -52,10 +52,12 @@ class GameForm extends React.Component {
             companyIDs: [],
             saveStatus: this.getLastSavedMessage(),
             week: 0,
+            latestGameWeek: 0,
+            selectedGameWeek: 0,
             totalProfit: 0,
             weekProfit: 0,
-            totalAvailableResources: {brain:0, muscle:0, heart: 0},
-            resultTotals: {hours: 0, brain:0, muscle:0, heart: 0},
+            totalAvailableResources: { brain: 0, muscle: 0, heart: 0 },
+            resultTotals: { hours: 0, brain: 0, muscle: 0, heart: 0 },
             //c_1: { hours: 0, isBlankHours: false, brain: 0, muscle: 0, heart: 0 , strike: false},
             //c_1_constants: {name: "", brainMultiplier: 0, muscleMultiplier: 0, heartMultiplier: 0}
         }
@@ -69,7 +71,17 @@ class GameForm extends React.Component {
     }
 
     componentDidMount() {
-        fetch('/api/getGameFormData')
+        this.getGameFormFromServer(null)
+    }
+
+    getGameFormFromServer(week) {
+        fetch('/api/getGameFormData', {
+            method: 'POST', // or 'PUT'
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({week: week}),
+        })
             .then(res => {
                 return res.json();
             }).then(data => {
@@ -78,6 +90,8 @@ class GameForm extends React.Component {
                 this.initializeGameValues(data)
                 tempState.submitted = data.submitted
                 tempState.week = data.week
+                tempState.latestGameWeek = data.latestGameWeek
+                tempState.selectedGameWeek = null
                 tempState.isLoaded = true
                 tempState.numRows = len
                 tempState.username = data.username
@@ -92,7 +106,7 @@ class GameForm extends React.Component {
     initializeGameValues(data) {
         const gameRows = data.rows
         const initialGameValues = {}
-        const initialResultTotals = {hours: 0, brain: 0, muscle: 0, heart: 0}
+        const initialResultTotals = { hours: 0, brain: 0, muscle: 0, heart: 0 }
         initialGameValues.companyIDs = []
         gameRows.forEach(row => {
             const id = row.id
@@ -112,11 +126,11 @@ class GameForm extends React.Component {
 
             initialGameValues["c_" + id + "_constants"] = {
                 name: row.name,
-                brainMultiplier: row.brainMultiplier, 
-                muscleMultiplier: row.muscleMultiplier, 
+                brainMultiplier: row.brainMultiplier,
+                muscleMultiplier: row.muscleMultiplier,
                 heartMultiplier: row.heartMultiplier
             }
-            
+
             // Adding each row's cost to the total to initialize
             initialResultTotals.hours += hours
             initialResultTotals.brain += brainCost
@@ -129,16 +143,16 @@ class GameForm extends React.Component {
         const availableMuscle = data.available_muscle
         const availableHeart = data.available_heart
         //IMPORTANT: assuming that all parts are the same value (eg: 30)
-        if(data.week === 1) {
+        if (data.week === 1) {
             initialGameValues.initialDist = data.distributablePoints
-            initialGameValues.remainingDist = (data.distributablePoints * 4) - availableBrain - availableMuscle- availableHeart
+            initialGameValues.remainingDist = (data.distributablePoints * 4) - availableBrain - availableMuscle - availableHeart
         }
-        initialGameValues.totalAvailableResources = 
-                                    {
-                                        brain: availableBrain, 
-                                        muscle: availableMuscle,
-                                        heart: availableHeart
-                                    }
+        initialGameValues.totalAvailableResources =
+        {
+            brain: availableBrain,
+            muscle: availableMuscle,
+            heart: availableHeart
+        }
         this.setState(initialGameValues)
     }
 
@@ -149,26 +163,26 @@ class GameForm extends React.Component {
         this.setState((prevState) => {
             const companyRow = "c_" + companyID
             const oldRow = prevState[companyRow]
-            const newRow = 
-                        {   
-                            hours: parsedHours,
-                            isBlankHours: isEmptyText,
-                            brain: (parsedHours * constants.brainMultiplier), 
-                            muscle: (parsedHours * constants.muscleMultiplier), 
-                            heart: (parsedHours * constants.heartMultiplier),
-                            strike: oldRow.strike
-                        }
+            const newRow =
+            {
+                hours: parsedHours,
+                isBlankHours: isEmptyText,
+                brain: (parsedHours * constants.brainMultiplier),
+                muscle: (parsedHours * constants.muscleMultiplier),
+                heart: (parsedHours * constants.heartMultiplier),
+                strike: oldRow.strike
+            }
             const newState = {}
             newState[companyRow] = newRow
-            
+
             const oldTotals = prevState.resultTotals
-            const newTotals = 
-                        {
-                            hours: oldTotals.hours +  newRow.hours - oldRow.hours,
-                            brain: oldTotals.brain + newRow.brain - oldRow.brain,
-                            muscle: oldTotals.muscle + newRow.muscle - oldRow.muscle,
-                            heart: oldTotals.heart + newRow.heart - oldRow.heart
-                        }
+            const newTotals =
+            {
+                hours: oldTotals.hours + newRow.hours - oldRow.hours,
+                brain: oldTotals.brain + newRow.brain - oldRow.brain,
+                muscle: oldTotals.muscle + newRow.muscle - oldRow.muscle,
+                heart: oldTotals.heart + newRow.heart - oldRow.heart
+            }
             newState.resultTotals = newTotals
             newState.savedMostRecent = false
             //this.startRowUpdateToServer(newRow, companyID) // realtime saves
@@ -182,7 +196,7 @@ class GameForm extends React.Component {
             const prevRow = { ...prevState[companyRow] }
             prevRow.strike = strike
             //this.startRowUpdateToServer(prevRow, companyID) // realtime saves
-            const newRow = { [companyRow]: prevRow, savedMostRecent: false}
+            const newRow = { [companyRow]: prevRow, savedMostRecent: false }
             return newRow
         })
     }
@@ -249,10 +263,10 @@ class GameForm extends React.Component {
     canReturnAvailablePoint(part) {
         let minimum = this.state.initialDist
         let current;
-        if(part === "brain") {
+        if (part === "brain") {
             current = this.state.totalAvailableResources.brain
         }
-        else if(part === "muscle") {
+        else if (part === "muscle") {
             current = this.state.totalAvailableResources.muscle
         }
         else {
@@ -262,10 +276,10 @@ class GameForm extends React.Component {
     }
 
     incrementAvailable(part) {
-        if(this.canTakeAvailablePoint()) {
+        if (this.canTakeAvailablePoint()) {
             const newState = {}
             newState.remainingDist = this.state.remainingDist - 1
-            const newAvailable = { ...this.state.totalAvailableResources}
+            const newAvailable = { ...this.state.totalAvailableResources }
             newAvailable[part] += 1
             newState.totalAvailableResources = newAvailable
             newState.savedMostRecent = false
@@ -276,9 +290,9 @@ class GameForm extends React.Component {
 
     decrementAvailable(part) {
         const newState = {}
-        if(this.canReturnAvailablePoint(part)) {
+        if (this.canReturnAvailablePoint(part)) {
             newState.remainingDist = this.state.remainingDist + 1
-            const newAvailable = { ...this.state.totalAvailableResources}
+            const newAvailable = { ...this.state.totalAvailableResources }
             newAvailable[part] -= 1
             newState.totalAvailableResources = newAvailable
             newState.savedMostRecent = false
@@ -326,7 +340,7 @@ class GameForm extends React.Component {
     //         this.resourcesTimer = null
     //     })
     // }
-    
+
     submitSelection() {
         this.sendAllInfo("submit")
     }
@@ -336,23 +350,23 @@ class GameForm extends React.Component {
     }
 
     sendAllInfo(submissionType) {
-        if(submissionType === "submit") {
+        if (submissionType === "submit") {
             let canSubmit = true;
-            if((this.state.totalAvailableResources.brain - this.state.resultTotals.brain) < 0) {
+            if ((this.state.totalAvailableResources.brain - this.state.resultTotals.brain) < 0) {
                 canSubmit = false;
             }
-            if(canSubmit && (this.state.totalAvailableResources.muscle - this.state.resultTotals.muscle) < 0) {
+            if (canSubmit && (this.state.totalAvailableResources.muscle - this.state.resultTotals.muscle) < 0) {
                 canSubmit = false;
             }
-            if(canSubmit && (this.state.totalAvailableResources.heart - this.state.resultTotals.heart) < 0) {
+            if (canSubmit && (this.state.totalAvailableResources.heart - this.state.resultTotals.heart) < 0) {
                 canSubmit = false;
             }
 
-            if(!canSubmit) {
+            if (!canSubmit) {
                 return;
             }
         }
-        
+
         // // Send all pending changes to server
         // clearTimeout(this.timer)
         // clearTimeout(this.resourcesTimer)
@@ -360,10 +374,10 @@ class GameForm extends React.Component {
         // this.sendBatchedAvailablePointsUpdate()
 
         let api;
-        if(submissionType === "save") {
+        if (submissionType === "save") {
             api = '/api/saveGameForm'
         }
-        else if(submissionType === "submit") {
+        else if (submissionType === "submit") {
             api = '/api/submitGameForm'
         }
         else {
@@ -373,13 +387,14 @@ class GameForm extends React.Component {
         const resources = this.collectResourcePointsData()
         fetch(api, {
             method: 'POST',
-            body: JSON.stringify({update: rows, week: this.state.week, totalResources: resources}),
+            body: JSON.stringify({ update: rows, week: this.state.week, totalResources: resources }),
             headers: {
                 'Content-Type': 'application/json'
-            }}).then((res) => {
-            if(res.status === 200) {
+            }
+        }).then((res) => {
+            if (res.status === 200) {
                 const newState = {}
-                if(submissionType === "submit") {
+                if (submissionType === "submit") {
                     newState.submitted = true
                 }
                 newState.savedMostRecent = true
@@ -393,7 +408,7 @@ class GameForm extends React.Component {
         const data = {}
         this.state.companyIDs.forEach(id => {
             const row = this.state["c_" + id]
-            data[id] = {hours: row.hours, strike: row.strike}
+            data[id] = { hours: row.hours, strike: row.strike }
         })
         return data
     }
@@ -401,6 +416,17 @@ class GameForm extends React.Component {
     collectResourcePointsData() {
         return { ...this.state.totalAvailableResources }
     }
+
+    getDefaultWeek() {
+        return (<MenuItem key={this.state.latestGameWeek} value={this.state.latestGameWeek}>Week {this.state.latestGameWeek}</MenuItem>)
+    }
+
+    changeCurrentWeek(value) {
+        
+        this.getGameFormFromServer(value)
+    }
+
+
 
     render() {
         const { error, isLoaded } = this.state;
@@ -410,15 +436,36 @@ class GameForm extends React.Component {
         if (!isLoaded) {
             return <div>Loading...</div>
         }
+        const gameIDOptions = []
+        for (let i = this.state.latestGameWeek; i > 0; i--) {
+            let value = i
+            let currentWeek = i
+            if (this.state.week !== value) {
+                gameIDOptions.push(<MenuItem key={currentWeek} value={value}>Week {currentWeek}</MenuItem>)
+            }
+
+        }
+
+
         return (
             <Box>
 
                 <Box className="col-12 border-bottom" pb={4}>
                     <Box className="row">
                         <Box className="col-md-4 col-12">
+
                             <Typography className="col-12" variant="h2" id="game-form-week" noWrap>
                                 Week {this.state.week}
                             </Typography>
+                            <Select
+                                id="game-id-selection"
+                                className="col-12"
+                                value={this.state.selectedGameWeek}
+                                
+                                onChange={(e) => { this.changeCurrentWeek(e.target.value) }}
+                            >
+                                {gameIDOptions}
+                            </Select>
                             <Box className="col-12" mt={2}>
                                 <Typography variant="h6" id="game-form-name">
                                     User: <small>{this.state.username}</small>
@@ -428,16 +475,16 @@ class GameForm extends React.Component {
                         </Box>
                         <Box className="col-md-4 col-12" display="flex" alignItems="flex-end">
                             <Box>
-                            <Box className="col-12" >
-                                <Typography variant="h6" id="game-saved-status" >
-                                    Previous week: <small>${this.state.weekProfit}</small>
-                                </Typography>
-                            </Box>
-                            <Box className="col-12 " >
-                                <Typography variant="h6" id="game-saved-status">
-                                    Total Earnings: <small>${this.state.totalProfit}</small>
-                                </Typography>
-                            </Box>
+                                <Box className="col-12" >
+                                    <Typography variant="h6" id="game-saved-status" >
+                                        Previous week: <small>${this.state.weekProfit}</small>
+                                    </Typography>
+                                </Box>
+                                <Box className="col-12 " >
+                                    <Typography variant="h6" id="game-saved-status">
+                                        Total Earnings: <small>${this.state.totalProfit}</small>
+                                    </Typography>
+                                </Box>
                             </Box>
                         </Box>
                         <Box className="col-md-4 col-12" pr={0} display="flex" justifyContent="center">
@@ -447,7 +494,7 @@ class GameForm extends React.Component {
                                     {this.state.saveStatus}
                                 </Typography>
                             </Box> */}
-                            <Box mt="auto" className="col-6"  display="flex" justifyContent="flex-end" pr={0} >
+                            <Box mt="auto" className="col-6" display="flex" justifyContent="flex-end" pr={0} >
                                 <Button id="game-submit-button" variant="contained" color="primary" disabled={this.state.savedMostRecent} onClick={() => {
                                     this.saveSelection()
                                 }}>
@@ -455,7 +502,7 @@ class GameForm extends React.Component {
                                 </Button>
                             </Box>
 
-                            <Box mt="auto" className="col-6"  display="flex" justifyContent="flex-end" pr={0} >
+                            <Box mt="auto" className="col-6" display="flex" justifyContent="flex-end" pr={0} >
                                 <Button id="game-submit-button" variant="contained" color="secondary" disabled={this.state.submitted} onClick={() => {
                                     this.submitSelection()
                                 }}>
@@ -468,13 +515,13 @@ class GameForm extends React.Component {
 
                 <Box className={this.props.classes.availablePointsContainer + " col-12 mt-3 py-3"} borderRadius={5}>
                     <Box className="row">
-                        <Box className="col-md-5 my-auto" style={{color:'white'}}display="flex" justifyContent="center">
-                            Available Points {this.state.week === 1 ? '(Distributable Points: '+this.state.remainingDist+')' : null}
+                        <Box className="col-md-5 my-auto" style={{ color: 'white' }} display="flex" justifyContent="center">
+                            Available Points {this.state.week === 1 ? '(Distributable Points: ' + this.state.remainingDist + ')' : null}
                         </Box>
                         <Box className="col-md-6 p-0" display="flex">
-                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="brain" available={this.state.totalAvailableResources.brain - this.state.resultTotals.brain}/>
-                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="muscle" available={this.state.totalAvailableResources.muscle - this.state.resultTotals.muscle}/>
-                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="heart" available={this.state.totalAvailableResources.heart - this.state.resultTotals.heart}/>
+                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="brain" available={this.state.totalAvailableResources.brain - this.state.resultTotals.brain} />
+                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="muscle" available={this.state.totalAvailableResources.muscle - this.state.resultTotals.muscle} />
+                            <AvailablePoints parent={this} disable={this.state.submitted} week={this.state.week} part="heart" available={this.state.totalAvailableResources.heart - this.state.resultTotals.heart} />
                         </Box>
                     </Box>
 
@@ -515,23 +562,23 @@ class GameForm extends React.Component {
                         </Box>
                     </Box>
                 </Box>
-                
+
                 {this.state.companyIDs.map((id, index) => {
                     return (
-                        <GameRow 
-                                key={id}
-                                id={id}
-                                index={index} 
-                                dynamic={this.state["c_" + id]} 
-                                constants={this.state["c_" + id + "_constants"]} 
-                                submitted={this.state.submitted}
-                                numRows={this.state.numRows}
-                                updateCompanyHours={this.updateCompanyHours}
-                                updateCompanyStrike={this.updateCompanyStrike}
+                        <GameRow
+                            key={id}
+                            id={id}
+                            index={index}
+                            dynamic={this.state["c_" + id]}
+                            constants={this.state["c_" + id + "_constants"]}
+                            submitted={this.state.submitted}
+                            numRows={this.state.numRows}
+                            updateCompanyHours={this.updateCompanyHours}
+                            updateCompanyStrike={this.updateCompanyStrike}
                         />
                     );
                 })}
-                <GameTotals totals={this.state.resultTotals}/>
+                <GameTotals totals={this.state.resultTotals} />
 
             </Box>
         );

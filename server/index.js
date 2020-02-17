@@ -25,17 +25,19 @@ app.use(express.json())
 
 app.use(express.static(path.join(__dirname,'../build')))
 
-app.get('/api/getGameFormData', (req, res) => {
+app.post('/api/getGameFormData', (req, res) => {
 	if(!req.session.loggedIn) {
 		return;
 	}
 	const data = {}
 	const username = req.session.username
+	const latestGameWeek = gv.getWeek()
 	const week = gv.getGivenWeek(req)
 	const lastWeek= week - 1;
 	
 	data.username = username
 	data.week = week
+	data.latestGameWeek = latestGameWeek
 	Promise.all([
 		db.get("SELECT * FROM user_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, week]),
 		db.all(
@@ -205,15 +207,19 @@ app.get('/api/getGameFormData', (req, res) => {
 	})
 })
 
-app.get('/api/getResults', (req, res) => {
+app.post('/api/getResults', (req, res) => {
+	const payload = {}
+	const latestResultsWeek = gv.getWeek()-1
+	payload.latestResultsWeek = latestResultsWeek
 	const week = gv.getGivenOrPreviousWeek(req)
+	payload.week = week
 	if(week === 0) {
 		res.status(200).end()
 	}
 	const nextWeek = week + 1
 	const username = req.session.username
 	const campaign_id = req.session.campaign_id
-	const payload = {}
+	
 	payload.username = username
 	Promise.all([
 		resultCalculations.getUserResults(username, week),
@@ -344,11 +350,12 @@ app.post('/api/login', function (req, res) {
 					req.session.loggedIn = true;
 					req.session.username = username;
 					req.session.campaign_id = row.campaigns_id
-					res.status(200).end()
+					req.session.admin = row.admin
+					res.send({isAdmin: (row.admin === 0 ? false: true)})
 					return;
 				}
 				res.status(422)
-				res.send('Incorrect Username and/or Password!');
+				res.send({message: 'Incorrect Username and/or Password!'});
 			}
 		)
 	}

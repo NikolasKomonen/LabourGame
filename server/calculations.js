@@ -898,14 +898,14 @@ class Calculations {
 }
 
 
-const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
-db.startDB().then(() => {
-    const c = new Calculations(db);
-    const calcWeek = 3
-    const calcCampaignID = 1
-    c.calculateTotalProfitsVerified(calcCampaignID, calcWeek)
+// const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
+// db.startDB().then(() => {
+//     const c = new Calculations(db);
+//     const calcWeek = 3
+//     const calcCampaignID = 1
+//     c.calculateTotalProfitsVerified(calcCampaignID, calcWeek)
 
 
-})
+// })
 
 module.exports = Calculations

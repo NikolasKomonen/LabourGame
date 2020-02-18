@@ -345,7 +345,7 @@ app.post('/api/login', function (req, res) {
 			(row) => {
 				if(!row) {
 					res.status(422)
-					res.send('Incorrect Username and/or Password!');
+					res.send({message: 'Incorrect Username and/or Password!'});
 					return;
 				}
 				const dbPassword = row.password
@@ -360,7 +360,7 @@ app.post('/api/login', function (req, res) {
 					return;
 				}
 				res.status(422)
-				res.send({message: 'Incorrect Username and/or Password!'});
+				
 			}
 		)
 	}

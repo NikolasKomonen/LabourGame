@@ -61,7 +61,7 @@ class Calculations {
     }
 
     getTotalCompanyHours(week, companies_id, campaigns_id) {
-        return this.db.get('SELECT sum(hours) FROM user_game_selections JOIN (SELECT * FROM accounts WHERE campaigns_id=?) ON username=accounts_username WHERE companies_id=? AND weeks_week=?;', [campaigns_id, companies_id, week])
+        return this.db.get('SELECT sum(hours) FROM user_game_selections JOIN (SELECT * FROM accounts WHERE campaigns_id=? AND admin=0) ON username=accounts_username WHERE companies_id=? AND weeks_week=?;', [campaigns_id, companies_id, week])
     }
 
     getWeekWage(week, companies_id, campaigns_id) {
@@ -165,10 +165,10 @@ class Calculations {
                 (SELECT username, name, id FROM 
                     (SELECT id, name FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_wage IS NOT null) AS week_companies
                     LEFT JOIN 
-                    (SELECT username FROM accounts WHERE campaigns_id=?)) 
+                    (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0)) 
                     AS user_comp
             LEFT JOIN
-                (SELECT * FROM user_game_selections WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?)) AS selec
+                (SELECT * FROM user_game_selections WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0)) AS selec
             ON
                 user_comp.username=selec.accounts_username
                 AND
@@ -206,7 +206,7 @@ class Calculations {
                 user_comp.id=selec.companies_id
             LEFT join
                 (
-                SELECT companies_id, wage, max(weeks_week) FROM company_wage_history WHERE company_wage_history.campaigns_id=(SELECT campaigns_id FROM accounts WHERE username=?) 
+                SELECT companies_id, wage, max(weeks_week) FROM company_wage_history WHERE company_wage_history.campaigns_id=(SELECT campaigns_id FROM accounts WHERE username=? AND admin=0) 
                 AND company_wage_history.weeks_week<=? GROUP BY companies_id
                 ) AS wage_hist
             ON
@@ -226,11 +226,11 @@ class Calculations {
     }
 
     getWeekLeaderboard(week, campaign_id) {
-        return this.db.all('SELECT accounts_username AS username, printf("%.2f", week_profit) AS week_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY week_profit+0 DESC;', [week, campaign_id])
+        return this.db.all('SELECT accounts_username AS username, printf("%.2f", week_profit) AS week_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0) ORDER BY week_profit+0 DESC;', [week, campaign_id])
     }
 
     getAllTimeLeaderboard(week, campaign_id) {
-        return this.db.all('SELECT accounts_username AS username, printf("%.2f", total_profit) AS total_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) ORDER BY total_profit+0 DESC;', [week, campaign_id])
+        return this.db.all('SELECT accounts_username AS username, printf("%.2f", total_profit) AS total_profit FROM user_profit_weeks WHERE weeks_week=? AND accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0) ORDER BY total_profit+0 DESC;', [week, campaign_id])
     }
 
     /**
@@ -260,7 +260,7 @@ class Calculations {
                                     FROM 
                                         user_game_selections 
                                     WHERE 
-                                        accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?)
+                                        accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0)
                                         AND
                                         companies_id IN (SELECT id FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_wage IS NOT null )
                                         AND
@@ -299,7 +299,7 @@ class Calculations {
                             WHERE 
                                 weeks_week=? 
                                 AND 
-                                accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?)
+                                accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0)
                                 AND
                                 companies_id IN (SELECT id FROM companies WHERE starting_wage IS NOT NULL)
                             )
@@ -343,7 +343,7 @@ class Calculations {
 
 
         // Clear out any future regular careers set previously
-        return this.db.run("DELETE FROM user_career_history WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) AND weeks_week>=? AND is_supervisor IS FALSE", [campaigns_id, nextWeek])
+        return this.db.run("DELETE FROM user_career_history WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0) AND weeks_week>=? AND is_supervisor IS FALSE", [campaigns_id, nextWeek])
             .then(() => {
                 return this.db.all(`
                 SELECT
@@ -353,7 +353,7 @@ class Calculations {
                     SELECT 
                         totals.accounts_username AS accounts_username, totals.companies_id AS companies_id, total_hours, is_supervisor, reached_supervisor, hist.career_week AS career_week
                     FROM 
-                            (SELECT * FROM user_total_company_hours WHERE user_total_company_hours.accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?)) AS totals 
+                            (SELECT * FROM user_total_company_hours WHERE user_total_company_hours.accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0)) AS totals 
                         LEFT JOIN 
                             (SELECT *, max(weeks_week) AS career_week FROM (SELECT * FROM user_career_history WHERE weeks_week <= ?) GROUP BY accounts_username, companies_id) AS hist
                         ON 
@@ -496,7 +496,7 @@ class Calculations {
                     return this.getRandomEventCard(week).then((newCard) => { return newCard })
                 }),
             // // 2c) Company Strike
-            this.db.all("SELECT companies_id, workers_striked, total_workers FROM user_strike_weeks WHERE campaigns_id=? and weeks_week=? ORDER BY companies_id;", [campaigns_id, week]),
+            this.db.all("SELECT companies_id, workers_striked, total_workers, name FROM user_strike_weeks JOIN companies ON companies_id=id WHERE campaigns_id=? and weeks_week=? ORDER BY companies_id;", [campaigns_id, week]),
             // // 2d) Career Boost
             this.getCareers(campaigns_id, week)
 
@@ -511,7 +511,7 @@ class Calculations {
      * @param {*} campaigns_id 
      */
     getCareers(campaigns_id, week) {
-        return this.db.all("SELECT accounts_username, name AS company_name, companies_id, max(weeks_week), is_supervisor FROM user_career_history JOIN companies ON companies_id=id WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) AND weeks_week<=? GROUP BY accounts_username, companies_id ORDER BY accounts_username, company_name;", [campaigns_id, week])
+        return this.db.all("SELECT accounts_username, name AS company_name, companies_id, max(weeks_week), is_supervisor FROM user_career_history JOIN companies ON companies_id=id WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0) AND weeks_week<=? GROUP BY accounts_username, companies_id ORDER BY accounts_username, company_name;", [campaigns_id, week])
     }
 
     getRandomEventCard(week) {
@@ -540,7 +540,7 @@ class Calculations {
      */
     dbUpdateWeekResources(campaigns_id, week) {
         const lastWeek = week - 1
-        return this.db.all(`SELECT username FROM accounts WHERE campaigns_id=?`, [campaigns_id]).then((usernames) => {
+        return this.db.all(`SELECT username FROM accounts WHERE campaigns_id=? AND admin=0`, [campaigns_id]).then((usernames) => {
             usernames.forEach(user => {
                 const username = user.username
                 return Promise.all(
@@ -733,7 +733,6 @@ class Calculations {
         const strikeDataSearch = {}
         strikeData.forEach(company => { // only has companies that attempted a strike
             const id = company.companies_id
-            strikeDataSearch[id] = {}
             strikeDataSearch[id] = (company.workers_striked / company.total_workers) > 0.5
         });
         const careerData = multipliers[3]
@@ -756,6 +755,7 @@ class Calculations {
             const wage = row.wage
             const hours = row.hours
             const userStriked = row.strike
+
             row.multiplierBreakdown = ""
             let noPayThisWeek = false
             let multiplier = 1
@@ -772,7 +772,7 @@ class Calculations {
                         noPayThisWeek = true
                     }
                     else {
-                        multiplier += wageChange
+                        multiplier += parseFloat(wageChange)
                         row.multiplierBreakdown += "EventCard: " + eventCard.event_data + ", "
                     }
                 }
@@ -780,15 +780,15 @@ class Calculations {
 
             if (!noPayThisWeek && fixedCardsSearch[id] !== undefined) {
                 const fixedCard = fixedCardsSearch[id]
-                multiplier += fixedCard.event_data
+                multiplier += parseFloat(fixedCard.event_data)
                 row.multiplierBreakdown += "FixedEventCard: " + fixedCard.event_data + ", "
             }
 
             const isSupervisor = careerDataSearch[username] === undefined ? undefined : careerDataSearch[username][id]
 
             if (!noPayThisWeek) {
-                const workersStriked = strikeDataSearch[id] !== undefined && strikeDataSearch[id]
-                let strikeSuccessful;
+                const workersStriked = strikeDataSearch[id] !== undefined
+                let strikeSuccessful = strikeDataSearch[id] !== undefined && strikeDataSearch[id];
 
                 if (isSupervisor !== undefined) { // is supervisor or regular
                     if (isSupervisor) {
@@ -831,7 +831,7 @@ class Calculations {
                             }
                             else {
                                 multiplier = 0
-                                row.multiplierBreakdown = ""
+                                row.multiplierBreakdown = "Lost a strike Attempt, "
                             }
                         }
                     }
@@ -901,7 +901,9 @@ class Calculations {
 const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
 db.startDB().then(() => {
     const c = new Calculations(db);
-    c.calculateTotalProfitsVerified(1, 3)
+    const calcWeek = 3
+    const calcCampaignID = 1
+    c.calculateTotalProfitsVerified(calcCampaignID, calcWeek)
 
 
 })

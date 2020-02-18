@@ -107,12 +107,19 @@ class AdminResults extends Component {
         let eventCard = this.state.eventCard.description
 
         let strikeEvents = []
+        this.state.strikeEvents.forEach(event => {
+            const companyName = event.name
+            const workersStriked = event.workers_striked
+            const total_workers = event.total_workers
+            strikeEvents.push(<Typography>There was a strike at {companyName} with {workersStriked} out of {total_workers} going on strike.</Typography>)
+        })
+
 
         let careerEvents = []
         this.state.careerEvents.forEach(event => {
             const username = event.accounts_username
             const company = event.company_name
-            const position = event.supervisor === 0 ? "Regular" : "Supervisor"
+            const position = event.is_supervisor === 0 ? "Regular" : "Supervisor"
             careerEvents.push(<Typography>{username + " promoted to " + position + " at " + company}</Typography>)
             careerEvents.push(<br></br>)
         })
@@ -157,7 +164,7 @@ class AdminResults extends Component {
                 </Box>
                 <Box>
                     <Typography variant="h5">Strike Events</Typography>
-
+                    <Typography>{strikeEvents}</Typography>
                     <br></br>
                 </Box>
                 <Box>

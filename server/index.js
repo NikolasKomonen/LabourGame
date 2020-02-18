@@ -227,7 +227,8 @@ app.post('/api/getResults', (req, res) => {
 		resultCalculations.getUserResults(username, week),
 		resultCalculations.getWeekLeaderboard(week, campaign_id),
 		resultCalculations.getAllTimeLeaderboard(week, campaign_id),
-		resultCalculations.getResourcesForWeek(nextWeek, username)
+		resultCalculations.getResourcesForWeek(nextWeek, username),
+		resultCalculations.getWeekCompanyWages(week, campaign_id)
 	])
 	.then(data => {
 		payload.userRows = data[0].rows
@@ -235,6 +236,7 @@ app.post('/api/getResults', (req, res) => {
 		payload.leaderboardWeek = data[1]
 		payload.leaderboardAll = data[2]
 		payload.resources = data[3]
+		payload.wages = data[4]
 		res.status(200).send(payload)
 		return
 	})

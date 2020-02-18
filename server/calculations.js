@@ -68,6 +68,10 @@ class Calculations {
         return this.db.get(`SELECT max(weeks_week), wage FROM company_wage_history WHERE companies_id=? AND campaigns_id=? AND weeks_week<=? GROUP BY companies_id AND campaigns_id;`, [companies_id, campaigns_id, week])
     }
 
+    getWeekCompanyWages(week, campaigns_id) {
+        return this.db.all(`SELECT name, companies_id, printf("%.2f", wage) AS wage  FROM company_wage_history JOIN companies ON companies_id=id WHERE companies_id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND weeks_week=? AND campaigns_id=? ORDER BY name ASC`, [week ,week, campaigns_id])
+    }
+
     getInitialWage(companies_id) {
         return this.db.get(`SELECT starting_wage AS wage FROM companies WHERE id=?`, [companies_id])
     }

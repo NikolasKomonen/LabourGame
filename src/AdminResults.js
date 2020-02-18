@@ -45,7 +45,8 @@ class AdminResults extends Component {
             username: "",
             latestResultsWeek: 0,
             currentResultsWeek: 0,
-            userWeekSelection: 0
+            userWeekSelection: 0,
+            wages: []
         }
 
     }
@@ -78,6 +79,7 @@ class AdminResults extends Component {
                 tempState.strikeEvents = data.gameEvents[2]
                 tempState.careerEvents = data.gameEvents[3]
                 tempState.nextWeekResources = data.resources
+                tempState.wages = data.wages
                 this.setState(tempState)
             }, (error) => {
                 console.log("Error fetching companies: " + error)
@@ -134,8 +136,22 @@ class AdminResults extends Component {
 
         }
 
+        const wageRows = []
+
+        this.state.wages.forEach(row => {
+
+            wageRows.push(
+                <TableRow key={row.name}>
+
+                    <TableCell align="right" color="white">{row.name}</TableCell>
+                    <TableCell align="right">${row.wage}</TableCell>
+                    
+                </TableRow>
+            )
+        })
+
         return (
-            <Box>
+            <Box className="container">
                 
                 <div>
                     <Button variant="contained" onClick={() => { this.logout() }}>Logout</Button>
@@ -172,6 +188,20 @@ class AdminResults extends Component {
                     <Typography>{careerEvents}</Typography>
                     <br></br>
                 </Box>
+
+                <TableContainer component={Paper}>
+                    <Table className={this.props.classes.table} size="medium" style={{ tableLayout: "fixed" }} aria-label="a dense table">
+                        <TableHead>
+                            <TableRow className={this.props.classes.headRow}>
+                                <TableCell className={this.props.classes.headText} align="right">Company</TableCell>
+                                <TableCell className={this.props.classes.headText} align="right">Wage</TableCell>
+                            </TableRow>
+                        </TableHead>
+                        <TableBody>
+                            {wageRows}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
 
                 <div className="container">
                     <div className="row">

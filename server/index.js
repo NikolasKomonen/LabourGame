@@ -11,7 +11,7 @@ const encryption = require('./encryption')
 const GameVariables = require('./GameVariables')
 
 // @@@@@@@@@@@@@@@@@@@@ Set The Game Week Here
-const gv = new GameVariables(3)
+const gv = new GameVariables(4)
 const Calculations = require('./calculations')
 const resultCalculations = new Calculations(db)
 
@@ -221,6 +221,8 @@ app.post('/api/getResults', (req, res) => {
 	const campaign_id = req.session.campaign_id
 	
 	payload.username = username
+
+	
 	Promise.all([
 		resultCalculations.getUserResults(username, week),
 		resultCalculations.getWeekLeaderboard(week, campaign_id),
@@ -236,6 +238,8 @@ app.post('/api/getResults', (req, res) => {
 		res.status(200).send(payload)
 		return
 	})
+	
+	
 })
 
 app.post('/api/submitGameForm', (req, res) => {
@@ -336,6 +340,7 @@ app.post('/api/login', function (req, res) {
 			username = username.substr(2)
 			adminOverride = true
 		}
+		
 		db.get("SELECT * FROM accounts WHERE username=?", [username]).then(
 			(row) => {
 				if(!row) {

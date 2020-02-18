@@ -40,7 +40,6 @@ class AdminResults extends Component {
         super()
         this.state = {
             isLoaded: false,
-            userRows: [],
             leaderboardWeek: [],
             leaderboardAll: [],
             username: "",
@@ -68,7 +67,6 @@ class AdminResults extends Component {
             }).then(data => {
                 console.log(data)
                 const tempState = {}
-                tempState.userRows = data.userRows
                 tempState.currentResultsWeek = data.week
                 tempState.latestResultsWeek = data.latestResultsWeek
                 tempState.userWeekSelection = data.week

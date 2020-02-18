@@ -493,7 +493,7 @@ class Calculations {
                     if (existingCard) {
                         return existingCard
                     }
-                    return this.getRandomEventCard().then((newCard) => { return newCard })
+                    return this.getRandomEventCard(week).then((newCard) => { return newCard })
                 }),
             // // 2c) Company Strike
             this.db.all("SELECT companies_id, workers_striked, total_workers FROM user_strike_weeks WHERE campaigns_id=? and weeks_week=? ORDER BY companies_id;", [campaigns_id, week]),
@@ -514,7 +514,7 @@ class Calculations {
         return this.db.all("SELECT accounts_username, name AS company_name, companies_id, max(weeks_week), is_supervisor FROM user_career_history JOIN companies ON companies_id=id WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?) AND weeks_week<=? GROUP BY accounts_username, companies_id ORDER BY accounts_username, company_name;", [campaigns_id, week])
     }
 
-    getRandomEventCard() {
+    getRandomEventCard(week) {
         // Check if 2 Bankrupcy cards were played
         const bankrupcyCardLimit = 12 - 10 // ALL_NON_RESOURCE_COMPANIES-PLAYABLE_COMPANIES
         return this.db.get(`SELECT count(*) AS total FROM event_card_history JOIN event_cards ON event_card_history.event_cards_id=event_cards.id WHERE event_types_id=2`)
@@ -527,9 +527,9 @@ class Calculations {
             })
             .then((drawBankrupcyCard) => {
                 if (drawBankrupcyCard) {
-                    return this.db.get(`SELECT * FROM event_cards WHERE id NOT IN (SELECT event_cards_id FROM event_card_history)`)
+                    return this.db.get(`SELECT * FROM event_cards WHERE id NOT IN (SELECT event_cards_id FROM event_card_history) AND companies_id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) ORDER BY RANDOM() LIMIT 1`, [week])
                 }
-                return this.db.get(`SELECT * FROM event_cards WHERE event_types_id!=2 AND id NOT IN (SELECT event_cards_id FROM event_card_history)`)
+                return this.db.get(`SELECT * FROM event_cards WHERE event_types_id!=2 AND id NOT IN (SELECT event_cards_id FROM event_card_history) AND companies_id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) ORDER BY RANDOM() LIMIT 1`, [week])
             })
     }
 
@@ -564,7 +564,8 @@ class Calculations {
                             , [username, lastWeek]),
 
                         this.db.get("SELECT * FROM user_game_weeks WHERE accounts_username=? AND weeks_week=?", [username, lastWeek]),
-                        this.db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week])
+                        this.db.get(`SELECT * FROM user_profit_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week]),
+                        this.db.get(`SELECT * FROM user_game_weeks WHERE accounts_username=? AND weeks_week=?`, [username, week])
                     ]
                 )
                     .then((queries) => {
@@ -583,11 +584,17 @@ class Calculations {
                         });
                         // Figures out the Training done, and applies it to the new
                         // available resources for this week
-                        const gameWeek = queries[1]
+                        const gameLastWeek = queries[1]
 
-                        const available_brain = gameWeek.available_brain + additional_brain
-                        const available_muscle = gameWeek.available_muscle + additional_muscle
-                        const available_heart = gameWeek.available_heart + additional_heart
+                        const available_brain = gameLastWeek.available_brain + additional_brain
+                        const available_muscle = gameLastWeek.available_muscle + additional_muscle
+                        const available_heart = gameLastWeek.available_heart + additional_heart
+
+                        let submitted = false;
+                        const gameThisWeek = queries[3]
+                        if(gameThisWeek) {
+                            submitted = gameThisWeek.submitted === 0 ? false : true
+                        }
 
 
                         return this.db.run(`
@@ -596,7 +603,7 @@ class Calculations {
                         VALUES 
                             (?, ?, ?, ?, ?, ?) 
                         `
-                            , [username, week, false, available_brain, available_muscle, available_heart])
+                            , [username, week, submitted, available_brain, available_muscle, available_heart])
                     })
             })
 
@@ -890,16 +897,13 @@ class Calculations {
     }
 }
 
-//TODO:
-// 1) Select Random Event Card if it the company is currently active
-// 2) Keep a history of supervisors for recalculations
 
-// const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
-// db.startDB().then(() => {
-//     const c = new Calculations(db);
-//     c.calculateTotalProfitsVerified(2, 2)
+const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
+db.startDB().then(() => {
+    const c = new Calculations(db);
+    c.calculateTotalProfitsVerified(1, 3)
 
 
-// })
+})
 
 module.exports = Calculations

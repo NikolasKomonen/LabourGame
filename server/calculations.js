@@ -661,12 +661,16 @@ class Calculations {
                     this.getPartialUserResults(username, week)
                 ])
             })
+            .catch(err => {
+                console.log("Error at getUserResults with username: ", username, " and error: ", err)
+            })
             .then((data) => {
                 return this.getResults(data[0], data[1], week, false)
                     .then((rows) => {
                         return { rows: rows, multipliers: data[0] }
                     })
             })
+            
     }
 
     calculateTotalProfits(campaigns_id, week) {
@@ -906,10 +910,8 @@ class Calculations {
 // db.startDB().then(() => {
 //     const c = new Calculations(db);
 //     const calcWeek = 3
-//     const calcCampaignID = 1
+//     const calcCampaignID = 2
 //     c.calculateTotalProfitsVerified(calcCampaignID, calcWeek)
-
-
 // })
 
 module.exports = Calculations

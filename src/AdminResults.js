@@ -91,8 +91,8 @@ class AdminResults extends Component {
     }
 
     logout() {
-        fetch('/api/logout', { method: "POST" }).then(() => {this.props.history.push('/login')}).catch(() => { console.log("Couldn't log out") })
-      }
+        fetch('/api/logout', { method: "POST" }).then(() => { this.props.history.push('/login') }).catch(() => { console.log("Couldn't log out") })
+    }
 
 
 
@@ -143,20 +143,20 @@ class AdminResults extends Component {
             wageRows.push(
                 <TableRow key={row.name}>
 
-                    <TableCell align="right" color="white">{row.name}</TableCell>
+                    <TableCell align="left" color="white">{row.name}</TableCell>
                     <TableCell align="right">${row.wage}</TableCell>
-                    
+
                 </TableRow>
             )
         })
 
         return (
             <Box className="container">
-                
+
                 <div>
                     <Button variant="contained" onClick={() => { this.logout() }}>Logout</Button>
                 </div>
-                
+
                 <Box>
                     <Typography variant="h2">Week {this.state.currentResultsWeek} Results</Typography>
                 </Box>
@@ -188,21 +188,21 @@ class AdminResults extends Component {
                     <Typography>{careerEvents}</Typography>
                     <br></br>
                 </Box>
-
-                <TableContainer component={Paper}>
-                    <Table className={this.props.classes.table} size="medium" style={{ tableLayout: "fixed" }} aria-label="a dense table">
-                        <TableHead>
-                            <TableRow className={this.props.classes.headRow}>
-                                <TableCell className={this.props.classes.headText} align="right">Company</TableCell>
-                                <TableCell className={this.props.classes.headText} align="right">Wage</TableCell>
-                            </TableRow>
-                        </TableHead>
-                        <TableBody>
-                            {wageRows}
-                        </TableBody>
-                    </Table>
-                </TableContainer>
-
+                <div className={this.props.classes.leaderboard}>
+                    <TableContainer component={Paper}>
+                        <Table className={this.props.classes.leaderboard + " col-6"} size="small" style={{ tableLayout: "fixed" }} aria-label="a dense table">
+                            <TableHead>
+                                <TableRow className={this.props.classes.headRow}>
+                                    <TableCell className={this.props.classes.headText} align="left">Company</TableCell>
+                                    <TableCell className={this.props.classes.headText} align="right">Wage</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {wageRows}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                </div>
                 <div className="container">
                     <div className="row">
 

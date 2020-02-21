@@ -910,7 +910,7 @@ class Calculations {
 // db.startDB().then(() => {
 //     const c = new Calculations(db);
 //     const calcWeek = 3
-//     const calcCampaignID = 2
+//     const calcCampaignID = 1
 //     c.calculateTotalProfitsVerified(calcCampaignID, calcWeek)
 // })
 

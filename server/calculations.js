@@ -200,7 +200,7 @@ class Calculations {
         return this.db.all(
             `
             SELECT 
-                user_comp.id AS id, COALESCE(strike, 0) AS strike, name, wage, COALESCE(hours, 0) AS hours, 0 AS pay, COALESCE(totals.total_hours, 0) AS total_hours 
+                ? AS username, user_comp.id AS id, COALESCE(strike, 0) AS strike, name, wage, COALESCE(hours, 0) AS hours, 0 AS pay, COALESCE(totals.total_hours, 0) AS total_hours 
             FROM 
                 (SELECT id, name FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_wage IS NOT null)
                     AS user_comp
@@ -225,7 +225,7 @@ class Calculations {
                 totals.companies_id=user_comp.id
             ORDER BY
                 name ASC;
-            `, [week, week, username, username, week, username, username, week])
+            `, [username, week, week, username, username, week, username, username, week])
 
     }
 
@@ -384,13 +384,16 @@ class Calculations {
                         rows.forEach((row) => {
                             let c = supervisorCandidates[row.companies_id]
                             if (c == null) {
-                                supervisorCandidates[row.companies_id] = {}
-                                c = supervisorCandidates[row.companies_id]
+                                c = {}
                                 c.candidates = []
                                 c.isSupervisorChosen = false
+                                supervisorCandidates[row.companies_id] = c
+                                
+                                
                             }
 
                             const userIsSupervisor = row.is_supervisor
+                            const isAlreadyRegular = row.is_supervisor !== null && !row.is_supervisor
 
                             const totalHours = row.total_hours
                             if (totalHours < row.regular_hours) { // is Nothing
@@ -435,7 +438,7 @@ class Calculations {
                                 }
                                 c.candidates.push(row) // is candidate for supervisor
                             }
-                            else { //is eligible for Regular
+                            else if(!isAlreadyRegular) { //is eligible for Regular
                                 if (userIsSupervisor) {
                                     statementsToRun.push(this.db.run('DELETE FROM user_career_history WHERE accounts_username=? AND companies_id=? AND weeks_week=?', [row.accounts_username, row.companies_id, row.career_week]))
                                 }
@@ -468,12 +471,9 @@ class Calculations {
                                             statementsToRun.push(this.db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)", [info.accounts_username, info.companies_id, nextWeek, false, false]))
                                         }
                                     })
-
                                     //Todo: wipe all future events of a supervisor at this company
                                     statementsToRun.push(this.db.run(`DELETE FROM user_career_history WHERE is_supervisor=1 AND companies_id=? AND weeks_week>=?`, [newSupervisor.companies_id, nextWeek + 1]))
                                 })
-
-
                             })
                             .then(() => {
                                 return Promise.all(statementsToRun)
@@ -529,8 +529,8 @@ class Calculations {
                 }
                 return true
             })
-            .then((drawBankrupcyCard) => {
-                if (drawBankrupcyCard) {
+            .then((canDrawBankrupcyCard) => {
+                if (canDrawBankrupcyCard) {
                     return this.db.get(`SELECT * FROM event_cards WHERE id NOT IN (SELECT event_cards_id FROM event_card_history) AND companies_id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) ORDER BY RANDOM() LIMIT 1`, [week])
                 }
                 return this.db.get(`SELECT * FROM event_cards WHERE event_types_id!=2 AND id NOT IN (SELECT event_cards_id FROM event_card_history) AND companies_id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) ORDER BY RANDOM() LIMIT 1`, [week])
@@ -624,32 +624,36 @@ class Calculations {
         const queryQueue = []
         const nextWeek = week + 1
         const companyID = eventCard.companies_id
-        return this.db.run(`REPLACE INTO weekly_excluded_companies SELECT ?, companies_id, went_bankrupt FROM weekly_excluded_companies WHERE weeks_week=?`, [nextWeek, week])
-            .then(() => {
-                if (eventCard.event_types_id === 2) { // Company is bankrupt
-                    queryQueue.push(
-                        // Choose Random company from all currently excluded ones and make it available for next week
-                        this.db.get(`
-                            SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=? AND went_bankrupt=0 ORDER BY companies_id ASC LIMIT 1;
-                        `, [week])
-                            .then((query) => {
-                                const joiningCompanyID = query.companies_id
-                                return this.db.run("DELETE FROM weekly_excluded_companies WHERE companies_id=? AND weeks_week=?;", [joiningCompanyID, nextWeek])
-                            })
-                            .then(() => { // Exclude provided event card company from next week
-                                return this.db.run(`
-                            REPLACE INTO 
-                                weekly_excluded_companies 
-                            VALUES (?, ?, 1)
-                            ;`,
-                                    [nextWeek, companyID])
-                            })
-                    )
-                }
-                // Update the event card history
-                queryQueue.push(this.db.run(`INSERT OR IGNORE INTO event_card_history VALUES (?, ?);`, [week, companyID]))
-                return Promise.all(queryQueue)
-            })
+
+        return this.db.run(`DELETE FROM weekly_excluded_companies WHERE weeks_week>1 AND weeks_week=?`, [nextWeek]) // clears out the future week's exclusions
+        .then(() => {
+            this.db.run(`REPLACE INTO weekly_excluded_companies SELECT ?, companies_id, went_bankrupt FROM weekly_excluded_companies WHERE weeks_week=?`, [nextWeek, week])
+        })
+        .then(() => {
+            if (eventCard.event_types_id === 2) { // Company is bankrupt
+                queryQueue.push(
+                    // Choose Random company from all currently excluded ones and make it available for next week
+                    this.db.get(`
+                        SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=? AND went_bankrupt=0 ORDER BY companies_id ASC LIMIT 1;
+                    `, [week])
+                    .then((query) => {
+                        const joiningCompanyID = query.companies_id
+                        return this.db.run("DELETE FROM weekly_excluded_companies WHERE companies_id=? AND weeks_week=?;", [joiningCompanyID, nextWeek])
+                    })
+                    .then(() => { // Exclude provided event card company from next week
+                        return this.db.run(`
+                        REPLACE INTO 
+                            weekly_excluded_companies 
+                        VALUES (?, ?, 1)
+                        ;`,
+                            [nextWeek, companyID])
+                    })
+                )
+            }
+            // Update the event card history
+            queryQueue.push(this.db.run(`INSERT OR IGNORE INTO event_card_history VALUES (?, ?);`, [week, eventCard.id]))
+            return Promise.all(queryQueue)
+        })
 
     }
 
@@ -909,7 +913,7 @@ class Calculations {
 // const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
 // db.startDB().then(() => {
 //     const c = new Calculations(db);
-//     const calcWeek = 3
+//     const calcWeek = 4
 //     const calcCampaignID = 1
 //     c.calculateTotalProfitsVerified(calcCampaignID, calcWeek)
 // })

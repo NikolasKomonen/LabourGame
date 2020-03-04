@@ -100,61 +100,62 @@ describe("Testing whole calculation for week 1 and 2", () => {
                expect(results).toMatchObject(
                   [
                      {
-                        "accounts_username": "dobby",
-                        "total_profit": 0,
-                        "week_profit": 0,
-                        "weeks_week": 1
+                        "accounts_username":"dobby",
+                        "total_profit":0,
+                        "week_profit":0,
+                        "weeks_week":1
                      },
                      {
-                        "accounts_username": "draco",
-                        "total_profit": 0,
-                        "week_profit": 0,
-                        "weeks_week": 1
+                        "accounts_username":"draco",
+                        "total_profit":0,
+                        "week_profit":0,
+                        "weeks_week":1
                      },
                      {
-                        "accounts_username": "dumbledore",
-                        "total_profit": 269.97299446620866,
-                        "week_profit": 269.97299446620866,
-                        "weeks_week": 1
+                        "accounts_username":"dumbledore",
+                        "total_profit":269.97299446620866,
+                        "week_profit":269.97299446620866,
+                        "weeks_week":1
                      },
                      {
-                        "accounts_username": "hagrid",
-                        "total_profit": 185.8327344362342,
-                        "week_profit": 185.8327344362342,
-                        "weeks_week": 1
+                        "accounts_username":"hagrid",
+                        "total_profit":276.3776958195497,
+                        "week_profit":276.3776958195497,
+                        "weeks_week":1
                      },
                      {
-                        "accounts_username": "harry",
-                        "total_profit": 129.88469631131608,
-                        "week_profit": 129.88469631131608,
-                        "weeks_week": 1
+                        "accounts_username":"harry",
+                        "total_profit":274.75663452462084,
+                        "week_profit":274.75663452462084,
+                        "weeks_week":1
                      },
                      {
-                        "accounts_username": "hermione",
-                        "total_profit": 208,
-                        "week_profit": 208,
-                        "weeks_week": 1
+                        "accounts_username":"hermione",
+                        "total_profit":208,
+                        "week_profit":208,
+                        "weeks_week":1
                      },
                      {
-                        "accounts_username": "ron",
-                        "total_profit": 214.4700044974589,
-                        "week_profit": 214.4700044974589,
-                        "weeks_week": 1
+                        "accounts_username":"ron",
+                        "total_profit":250.6879890507851,
+                        "week_profit":250.6879890507851,
+                        "weeks_week":1
                      },
                      {
-                        "accounts_username": "snape",
-                        "total_profit": 120.34399452539255,
-                        "week_profit": 120.34399452539255,
-                        "weeks_week": 1
+                        "accounts_username":"snape",
+                        "total_profit":120.34399452539255,
+                        "week_profit":120.34399452539255,
+                        "weeks_week":1
                      },
                      {
-                        "accounts_username": "voldemort",
-                        "total_profit": 294.1758736768162,
-                        "week_profit": 294.1758736768162,
-                        "weeks_week": 1
+                        "accounts_username":"voldemort",
+                        "total_profit":294.1758736768162,
+                        "week_profit":294.1758736768162,
+                        "weeks_week":1
                      }
                   ]
                )
+                  
             })
          )
 
@@ -166,7 +167,7 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      "available_brain": 30,
                      "available_heart": 30,
                      "available_muscle": 30,
-                     "submitted": 0,
+                     "submitted": 1,
                      "weeks_week": 2
                   },
                   {
@@ -174,7 +175,7 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      "available_brain": 35,
                      "available_heart": 35,
                      "available_muscle": 35,
-                     "submitted": 0,
+                     "submitted": 1,
                      "weeks_week": 2
                   },
                   {
@@ -182,7 +183,7 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      "available_brain": 45,
                      "available_heart": 33,
                      "available_muscle": 45,
-                     "submitted": 0,
+                     "submitted": 1,
                      "weeks_week": 2
                   },
                   {
@@ -190,7 +191,7 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      "available_brain": 30,
                      "available_heart": 60,
                      "available_muscle": 30,
-                     "submitted": 0,
+                     "submitted": 1,
                      "weeks_week": 2
                   },
                   {
@@ -198,7 +199,7 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      "available_brain": 37,
                      "available_heart": 42,
                      "available_muscle": 37,
-                     "submitted": 0,
+                     "submitted": 1,
                      "weeks_week": 2
                   },
                   {
@@ -206,7 +207,7 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      "available_brain": 65,
                      "available_heart": 30,
                      "available_muscle": 30,
-                     "submitted": 0,
+                     "submitted": 1,
                      "weeks_week": 2
                   },
                   {
@@ -214,7 +215,7 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      "available_brain": 32,
                      "available_heart": 48,
                      "available_muscle": 38,
-                     "submitted": 0,
+                     "submitted": 1,
                      "weeks_week": 2
                   },
                   {
@@ -222,7 +223,7 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      "available_brain": 31,
                      "available_heart": 31,
                      "available_muscle": 31,
-                     "submitted": 0,
+                     "submitted": 1,
                      "weeks_week": 2
                   },
                   {
@@ -230,7 +231,7 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      "available_brain": 30,
                      "available_heart": 63,
                      "available_muscle": 33,
-                     "submitted": 0,
+                     "submitted": 1,
                      "weeks_week": 2
                   }
                ]
@@ -351,58 +352,58 @@ describe("Testing whole calculation for week 1 and 2", () => {
                expect(results).toMatchObject(
                   [
                      {
-                        "accounts_username": "dobby",
-                        "total_profit": 0,
-                        "week_profit": 0,
-                        "weeks_week": 2
+                        "accounts_username":"dobby",
+                        "total_profit":0,
+                        "week_profit":0,
+                        "weeks_week":2
                      },
                      {
-                        "accounts_username": "draco",
-                        "total_profit": 108.80000000000001,
-                        "week_profit": 108.80000000000001,
-                        "weeks_week": 2
+                        "accounts_username":"draco",
+                        "total_profit":108.80000000000001,
+                        "week_profit":108.80000000000001,
+                        "weeks_week":2
                      },
                      {
-                        "accounts_username": "dumbledore",
-                        "total_profit": 463.0406390279639,
-                        "week_profit": 193.06764456175523,
-                        "weeks_week": 2
+                        "accounts_username":"dumbledore",
+                        "total_profit":405.4406390279639,
+                        "week_profit":135.46764456175524,
+                        "weeks_week":2
                      },
                      {
-                        "accounts_username": "hagrid",
-                        "total_profit": 463.4932478602398,
-                        "week_profit": 277.6605134240056,
-                        "weeks_week": 2
+                        "accounts_username":"hagrid",
+                        "total_profit":554.0382092435552,
+                        "week_profit":277.6605134240056,
+                        "weeks_week":2
                      },
                      {
-                        "accounts_username": "harry",
-                        "total_profit": 380.6463081356428,
-                        "week_profit": 250.7616118243267,
-                        "weeks_week": 2
+                        "accounts_username":"harry",
+                        "total_profit":525.5182463489475,
+                        "week_profit":250.7616118243267,
+                        "weeks_week":2
                      },
                      {
-                        "accounts_username": "hermione",
-                        "total_profit": 412.8,
-                        "week_profit": 204.8,
-                        "weeks_week": 2
+                        "accounts_username":"hermione",
+                        "total_profit":412.8,
+                        "week_profit":204.8,
+                        "weeks_week":2
                      },
                      {
-                        "accounts_username": "ron",
-                        "total_profit": 339.8508104096222,
-                        "week_profit": 125.38080591216335,
-                        "weeks_week": 2
+                        "accounts_username":"ron",
+                        "total_profit":376.06879496294846,
+                        "week_profit":125.38080591216335,
+                        "weeks_week":2
                      },
                      {
-                        "accounts_username": "snape",
-                        "total_profit": 188.48409721019368,
-                        "week_profit": 68.14010268480112,
-                        "weeks_week": 2
+                        "accounts_username":"snape",
+                        "total_profit":188.48409721019368,
+                        "week_profit":68.14010268480112,
+                        "weeks_week":2
                      },
                      {
-                        "accounts_username": "voldemort",
-                        "total_profit": 502.9648677686946,
-                        "week_profit": 208.7889940918784,
-                        "weeks_week": 2
+                        "accounts_username":"voldemort",
+                        "total_profit":502.9648677686946,
+                        "week_profit":208.7889940918784,
+                        "weeks_week":2
                      }
                   ]
                )

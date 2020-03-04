@@ -657,6 +657,26 @@ class Calculations {
 
     }
 
+    getResultPageMultipliers(campaigns_id, week) {
+        return Promise.all([
+            // // 2a) Fixed Events
+            this.db.all("SELECT companies_id, description, event_types_id, event_data FROM fixed_event_cards WHERE weeks_week=? ORDER BY companies_id;", [week]),
+            // // 2b) Event Cards
+            this.db.get("SELECT id, companies_id, description, event_types_id, event_data FROM event_card_history JOIN event_cards ON event_card_history.event_cards_id=event_cards.id WHERE event_card_history.weeks_week=?;", [week])
+                .then((existingCard) => {
+                    if (existingCard) {
+                        return existingCard
+                    }
+                    return this.getRandomEventCard(week).then((newCard) => { return newCard })
+                }),
+            // // 2c) Company Strike
+            this.db.all("SELECT companies_id, workers_striked, total_workers, name FROM user_strike_weeks JOIN companies ON companies_id=id WHERE campaigns_id=? and weeks_week=? ORDER BY companies_id;", [campaigns_id, week]),
+            // // 2d) Career Boost
+            this.db.all("SELECT accounts_username, name AS company_name, companies_id, max(weeks_week), is_supervisor FROM user_career_history JOIN companies ON companies_id=id WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0) AND weeks_week=? GROUP BY accounts_username, companies_id ORDER BY accounts_username, company_name;", [campaigns_id, week+1])
+
+        ])
+    }
+
     getUserResults(username, week) {
         return this.db.get("SELECT campaigns_id FROM accounts WHERE username=?;", [username])
             .then(campaigns_id => {
@@ -671,7 +691,7 @@ class Calculations {
             .then((data) => {
                 return this.getResults(data[0], data[1], week, false)
                     .then((rows) => {
-                        return { rows: rows, multipliers: data[0] }
+                        return rows
                     })
             })
             
@@ -913,9 +933,12 @@ class Calculations {
 // const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
 // db.startDB().then(() => {
 //     const c = new Calculations(db);
-//     const calcWeek = 4
-//     const calcCampaignID = 1
-//     c.calculateTotalProfitsVerified(calcCampaignID, calcWeek)
+//     const calcWeek = 5
+//     c.calculateTotalProfitsVerified(1, calcWeek)
+//     .then(() => {
+//         c.calculateTotalProfitsVerified(2, calcWeek)
+//     })
+    
 // })
 
 module.exports = Calculations

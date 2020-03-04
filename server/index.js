@@ -11,7 +11,7 @@ const encryption = require('./encryption')
 const GameVariables = require('./GameVariables')
 
 // @@@@@@@@@@@@@@@@@@@@ Set The Game Week Here
-const gv = new GameVariables(5)
+const gv = new GameVariables(6)
 const Calculations = require('./calculations')
 const resultCalculations = new Calculations(db)
 
@@ -225,18 +225,19 @@ app.post('/api/getResults', (req, res) => {
 	
 	Promise.all([
 		resultCalculations.getUserResults(username, week),
+		resultCalculations.getResultPageMultipliers(campaign_id, week),
 		resultCalculations.getWeekLeaderboard(week, campaign_id),
 		resultCalculations.getAllTimeLeaderboard(week, campaign_id),
 		resultCalculations.getResourcesForWeek(nextWeek, username),
 		resultCalculations.getWeekCompanyWages(week, campaign_id)
 	])
 	.then(data => {
-		payload.userRows = data[0].rows
-		payload.gameEvents = data[0].multipliers
-		payload.leaderboardWeek = data[1]
-		payload.leaderboardAll = data[2]
-		payload.resources = data[3]
-		payload.wages = data[4]
+		payload.userRows = data[0]
+		payload.gameEvents = data[1]
+		payload.leaderboardWeek = data[2]
+		payload.leaderboardAll = data[3]
+		payload.resources = data[4]
+		payload.wages = data[5]
 		res.status(200).send(payload)
 		return
 	})

@@ -460,7 +460,7 @@ class GameForm extends React.Component {
                             <Select
                                 id="game-id-selection"
                                 className="col-12"
-                                value={this.state.selectedGameWeek}
+                                value=""
                                 
                                 onChange={(e) => { this.changeCurrentWeek(e.target.value) }}
                             >

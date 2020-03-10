@@ -98,11 +98,16 @@ class ResultsSection extends Component {
             return (<div></div>)
         }
 
-        let fixedEventCard = []
-        this.state.fixedEvents.forEach(fe => {
-            fixedEventCard.push(<Typography>{fe.description}</Typography>)
-            fixedEventCard.push(<br></br>)
+        let fixedEventCards = []
+        this.state.fixedEvents.forEach((fe, i) => {
+            fixedEventCards.push(<Typography key={i}>{fe.description}</Typography>)
+            fixedEventCards.push(<br key={i + "br"}></br>)
         });
+
+        if(fixedEventCards.length < 1) {
+            fixedEventCards = [<Box>None</Box>]
+        }
+
         let eventCard = this.state.eventCard.description
 
         let strikeEvents = []
@@ -113,14 +118,22 @@ class ResultsSection extends Component {
             strikeEvents.push(<Typography>There was a strike at {companyName} with {workersStriked} out of {total_workers} going on strike.</Typography>)
         })
 
+        if(strikeEvents.length < 1) {
+            strikeEvents = [<Box>None</Box>]
+        }
+
         let careerEvents = []
-        this.state.careerEvents.forEach(event => {
+        this.state.careerEvents.forEach((event, i) => {
             const username = event.accounts_username
             const company = event.company_name
             const position = event.is_supervisor === 0 ? "Regular" : "Supervisor"
-            careerEvents.push(<Typography>{username + " promoted to " + position + " at " + company}</Typography>)
-            careerEvents.push(<br></br>)
+            careerEvents.push(<Typography key={username + company} component={'span'}>{username + " promoted to "} <Box component='span' fontWeight="fontWeightBold">{position}</Box> {" at " + company}</Typography>)
+            careerEvents.push(<br key={i}></br>)
         })
+
+        if(careerEvents.length < 1) {
+            careerEvents = [<Box>None</Box>]
+        }
 
         let nextWeekResources = []
         nextWeekResources.push(<Typography className="pl-5" variant="h6">Brain <small>{this.state.nextWeekResources.available_brain}</small></Typography>)
@@ -134,7 +147,6 @@ class ResultsSection extends Component {
             if (this.state.currentResultsWeek !== value) {
                 gameIDOptions.push(<MenuItem key={currentWeek} value={value}>Week {currentWeek}</MenuItem>)
             }
-
         }
 
         return (
@@ -153,7 +165,7 @@ class ResultsSection extends Component {
                 </Select>
                 <Box>
                     <Typography variant="h5">Fixed Events</Typography>
-                    {fixedEventCard}
+                    <Typography>{fixedEventCards}</Typography>
                 </Box>
                 <Box>
                     <Typography variant="h5">Event Card</Typography>
@@ -175,6 +187,7 @@ class ResultsSection extends Component {
                     <Typography variant="h5">Next Week Resources</Typography>
                     {nextWeekResources}
                 </Box>
+                <Typography align="center" variant="h4">Week {this.state.currentResultsWeek} Wages</Typography>
                 <TableContainer component={Paper}>
                     <Table className={this.props.classes.table} size="medium" style={{ tableLayout: "fixed" }} aria-label="a dense table">
                         <TableHead>
@@ -210,51 +223,56 @@ class ResultsSection extends Component {
                 <div className="container">
                     <div className="row">
 
+                        <Box className={this.props.classes.leaderboard + " col-6"} mt={5}>
+                            <Typography align="center" variant="h4">Week {this.state.currentResultsWeek} Profit</Typography>
+                            <Table className={this.props.classes.leaderboard + " col-6"} size="small" style={{ tableLayout: "revert" }} aria-label="a dense table">
+                                <TableHead>
+                                    <TableRow className={this.props.classes.headRow}>
 
-                        <Table className={this.props.classes.leaderboard + " col-6"} size="small" style={{ tableLayout: "revert" }} aria-label="a dense table">
-                            <TableHead>
-                                <TableRow className={this.props.classes.headRow}>
+                                        <TableCell className={this.props.classes.headText} align="left">User</TableCell>
+                                        <TableCell className={this.props.classes.headText} align="right">Total Week Profit</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {this.state.leaderboardWeek.map(row => {
 
-                                    <TableCell className={this.props.classes.headText} align="left">User</TableCell>
-                                    <TableCell className={this.props.classes.headText} align="right">Total Week Profit</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {this.state.leaderboardWeek.map(row => {
+                                        return (
+                                            <TableRow key={row.username}>
 
-                                    return (
-                                        <TableRow key={row.username}>
+                                                <TableCell align="left" color="white" className={row.username === this.state.username ? this.props.classes.boldData : ""}>{row.username}</TableCell>
+                                                <TableCell align="right" className={row.username === this.state.username ? this.props.classes.boldData : ""}>${row.week_profit}</TableCell>
 
-                                            <TableCell align="left" color="white" className={row.username === this.state.username ? this.props.classes.boldData : ""}>{row.username}</TableCell>
-                                            <TableCell align="right" className={row.username === this.state.username ? this.props.classes.boldData : ""}>${row.week_profit}</TableCell>
+                                            </TableRow>
+                                        )
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </Box>
+                        <Box className={this.props.classes.leaderboard + " col-6"} mt={5}>
+                            <Typography align="center" variant="h4">Total Profit</Typography>
+                            <Table className={this.props.classes.leaderboard + " col-6"} size="small" style={{ tableLayout: "revert" }} aria-label="a dense table">
+                                <TableHead>
+                                    <TableRow className={this.props.classes.headRow}>
 
-                                        </TableRow>
-                                    )
-                                })}
-                            </TableBody>
-                        </Table>
-                        <Table className={this.props.classes.leaderboard + " col-6"} size="small" style={{ tableLayout: "revert" }} aria-label="a dense table">
-                            <TableHead>
-                                <TableRow className={this.props.classes.headRow}>
+                                        <TableCell className={this.props.classes.headText} align="left">User</TableCell>
+                                        <TableCell className={this.props.classes.headText} align="right">All-Time Profit</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {this.state.leaderboardAll.map(row => {
 
-                                    <TableCell className={this.props.classes.headText} align="left">User</TableCell>
-                                    <TableCell className={this.props.classes.headText} align="right">All-Time Profit</TableCell>
-                                </TableRow>
-                            </TableHead>
-                            <TableBody>
-                                {this.state.leaderboardAll.map(row => {
+                                        return (
+                                            <TableRow key={row.username}>
 
-                                    return (
-                                        <TableRow key={row.username}>
+                                                <TableCell align="left" color="white" className={row.username === this.state.username ? this.props.classes.boldData : ""}>{row.username}</TableCell>
+                                                <TableCell align="right" className={row.username === this.state.username ? this.props.classes.boldData : ""}>${row.total_profit}</TableCell>
 
-                                            <TableCell align="left" color="white" className={row.username === this.state.username ? this.props.classes.boldData : ""}>{row.username}</TableCell>
-                                            <TableCell align="right" className={row.username === this.state.username ? this.props.classes.boldData : ""}>${row.total_profit}</TableCell>
-
-                                        </TableRow>
-                                    )
-                                })}
-                            </TableBody>
-                        </Table>
+                                            </TableRow>
+                                        )
+                                    })}
+                                </TableBody>
+                            </Table>
+                        </Box>
                     </div>
                 </div>
 

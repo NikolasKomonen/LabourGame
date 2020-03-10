@@ -602,49 +602,49 @@ describe("Test careers", () => {
                      "companies_id": 2,
                      "company_name": "Cam with Benefits",
                      "is_supervisor": 0,
-                     "max(weeks_week)": 2
+                     "week": 2
                   },
                   {
                      "accounts_username": "harry",
                      "companies_id": 1,
                      "company_name": "Poopora",
                      "is_supervisor": 0,
-                     "max(weeks_week)": 2
+                     "week": 2
                   },
                   {
                      "accounts_username": "ron",
                      "companies_id": 2,
                      "company_name": "Cam with Benefits",
                      "is_supervisor": 0,
-                     "max(weeks_week)": 2
+                     "week": 2
                   },
                   {
                      "accounts_username": "ron",
                      "companies_id": 3,
                      "company_name": "Cheesewagon",
                      "is_supervisor": 1,
-                     "max(weeks_week)": 2
+                     "week": 2
                   },
                   {
                      "accounts_username": "snape",
                      "companies_id": 2,
                      "company_name": "Cam with Benefits",
                      "is_supervisor": 0,
-                     "max(weeks_week)": 2
+                     "week": 2
                   },
                   {
                      "accounts_username": "snape",
                      "companies_id": 3,
                      "company_name": "Cheesewagon",
                      "is_supervisor": 0,
-                     "max(weeks_week)": 2
+                     "week": 2
                   },
                   {
                      "accounts_username": "voldemort",
                      "companies_id": 3,
                      "company_name": "Cheesewagon",
                      "is_supervisor": 0,
-                     "max(weeks_week)": 2
+                     "week": 2
                   }
                ]
             )
@@ -699,14 +699,14 @@ describe("Test careers", () => {
                      "companies_id":3,
                      "company_name":"Cheesewagon",
                      "is_supervisor":0,
-                     "max(weeks_week)":2
+                     "week":2
                   },
                   {
                      "accounts_username":"snape",
                      "companies_id":3,
                      "company_name":"Cheesewagon",
                      "is_supervisor":0,
-                     "max(weeks_week)":2
+                     "week":2
                   }
                ]
             )
@@ -723,21 +723,79 @@ describe("Test careers", () => {
                      "companies_id":3,
                      "company_name":"Cheesewagon",
                      "is_supervisor":0,
-                     "max(weeks_week)":3
+                     "week":3
                   },
                   {
                      "accounts_username":"ron",
                      "companies_id":3,
                      "company_name":"Cheesewagon",
                      "is_supervisor":1,
-                     "max(weeks_week)":3
+                     "week":3
                   },
                   {
                      "accounts_username":"snape",
                      "companies_id":3,
                      "company_name":"Cheesewagon",
                      "is_supervisor":0,
-                     "max(weeks_week)":2
+                     "week":2
+                  }
+               ]
+            )
+
+         })
+   }
+
+})
+
+describe("Test Incorrect Supervisor", () => {
+   let c = new Calculations(null)
+   let db = new SQL();
+
+   beforeAll(async () => {
+      const testDBPath = path.join(__dirname, "temp/testDBFileWeek2CareerChange.sqlite")
+      fs.copyFileSync(path.join(__dirname, "testDBFileWeek2CareerChangeTemplate.sqlite"), testDBPath)
+      db = new SQL(testDBPath)
+      await db.startDB()
+      c = new Calculations(db)
+   })
+
+   afterAll(() => {
+      db.close()
+   })
+   test("Test the incorrect careers", async () => {
+      return helper()
+   })
+
+   function helper() {
+      return c.dbUpdateTotalHours(1, 1)
+         .then(() => {
+            return c.dbUpdateCareersTable(1, 1)
+            .then(() => {
+               return c.dbUpdateTotalHours(1, 2)
+            })
+            .then(() => {
+               return c.dbUpdateCareersTable(1, 2)
+            })
+         })
+         .then(() => {
+            return c.getCareers(1, 3)
+         })
+         .then(careers => {
+            return expect(careers).toMatchObject(
+               [
+                  {
+                     "accounts_username":"ron",
+                     "companies_id":3,
+                     "company_name":"Cheesewagon",
+                     "is_supervisor":0,
+                     "week":2
+                  },
+                  {
+                     "accounts_username":"snape",
+                     "companies_id":3,
+                     "company_name":"Cheesewagon",
+                     "is_supervisor":1,
+                     "week":3
                   }
                ]
             )

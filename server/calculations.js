@@ -98,6 +98,10 @@ class Calculations {
 
     }
 
+    clearUserProfitWeeksTable(campaigns_id) {
+        return this.db.run("DELETE FROM user_profit_weeks WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=?);", [campaigns_id])
+    }
+
     calculateWageForCompany(baseline, week, companies_id, campaigns_id) {
         return new Promise((resolve, reject) => {
             const calculations = [
@@ -515,7 +519,7 @@ class Calculations {
      * @param {*} campaigns_id 
      */
     getCareers(campaigns_id, week) {
-        return this.db.all("SELECT accounts_username, name AS company_name, companies_id, max(weeks_week), is_supervisor FROM user_career_history JOIN companies ON companies_id=id WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0) AND weeks_week<=? GROUP BY accounts_username, companies_id ORDER BY accounts_username, company_name;", [campaigns_id, week])
+        return this.db.all("SELECT accounts_username, name AS company_name, companies_id, max(weeks_week) AS week, is_supervisor FROM user_career_history JOIN companies ON companies_id=id WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0) AND weeks_week<=? GROUP BY accounts_username, companies_id ORDER BY accounts_username, company_name;", [campaigns_id, week])
     }
 
     getRandomEventCard(week) {
@@ -741,7 +745,8 @@ class Calculations {
      */
     async calculateTotalProfitsVerified(campaigns_id, week) {
         let currentWeek = 1
-
+        await this.clearUserProfitWeeksTable(campaigns_id)
+        
         while (currentWeek <= week) {
             await this.calculateTotalProfits(campaigns_id, currentWeek)
             currentWeek++
@@ -930,15 +935,15 @@ class Calculations {
 }
 
 
-// const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
-// db.startDB().then(() => {
-//     const c = new Calculations(db);
-//     const calcWeek = 5
-//     c.calculateTotalProfitsVerified(1, calcWeek)
-//     .then(() => {
-//         c.calculateTotalProfitsVerified(2, calcWeek)
-//     })
+const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
+db.startDB().then(() => {
+    const c = new Calculations(db);
+    const calcWeek = 5
+    c.calculateTotalProfitsVerified(1, calcWeek)
+    .then(() => {
+        c.calculateTotalProfitsVerified(2, calcWeek)
+    })
     
-// })
+})
 
 module.exports = Calculations

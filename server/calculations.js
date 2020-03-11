@@ -935,15 +935,14 @@ class Calculations {
 }
 
 
-const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
-db.startDB().then(() => {
-    const c = new Calculations(db);
-    const calcWeek = 5
-    c.calculateTotalProfitsVerified(1, calcWeek)
-    .then(() => {
-        c.calculateTotalProfitsVerified(2, calcWeek)
-    })
-    
-})
+// const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
+// db.startDB().then(() => {
+//     const c = new Calculations(db);
+//     const calcWeek = 6
+//     c.calculateTotalProfitsVerified(1, calcWeek)
+//     .then(() => {
+//         c.calculateTotalProfitsVerified(2, calcWeek)
+//     })
+// })
 
 module.exports = Calculations

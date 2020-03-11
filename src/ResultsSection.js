@@ -127,7 +127,7 @@ class ResultsSection extends Component {
             const username = event.accounts_username
             const company = event.company_name
             const position = event.is_supervisor === 0 ? "Regular" : "Supervisor"
-            careerEvents.push(<Typography key={username + company} component={'span'}>{username + " promoted to "} <Box component='span' fontWeight="fontWeightBold">{position}</Box> {" at " + company}</Typography>)
+            careerEvents.push(<Typography key={username + company} component={'span'}>{username + " became a "} <Box component='span' fontWeight="fontWeightBold">{position}</Box> {" at " + company}</Typography>)
             careerEvents.push(<br key={i}></br>)
         })
 
@@ -224,13 +224,13 @@ class ResultsSection extends Component {
                     <div className="row">
 
                         <Box className={this.props.classes.leaderboard + " col-6"} mt={5}>
-                            <Typography align="center" variant="h4">Week {this.state.currentResultsWeek} Profit</Typography>
+                            <Typography align="center" variant="h4">Week {this.state.currentResultsWeek} Earnings</Typography>
                             <Table className={this.props.classes.leaderboard + " col-6"} size="small" style={{ tableLayout: "revert" }} aria-label="a dense table">
                                 <TableHead>
                                     <TableRow className={this.props.classes.headRow}>
 
                                         <TableCell className={this.props.classes.headText} align="left">User</TableCell>
-                                        <TableCell className={this.props.classes.headText} align="right">Total Week Profit</TableCell>
+                                        <TableCell className={this.props.classes.headText} align="right">Total Week Earnings</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>
@@ -249,13 +249,13 @@ class ResultsSection extends Component {
                             </Table>
                         </Box>
                         <Box className={this.props.classes.leaderboard + " col-6"} mt={5}>
-                            <Typography align="center" variant="h4">Total Profit</Typography>
+                            <Typography align="center" variant="h4">Total Earnings</Typography>
                             <Table className={this.props.classes.leaderboard + " col-6"} size="small" style={{ tableLayout: "revert" }} aria-label="a dense table">
                                 <TableHead>
                                     <TableRow className={this.props.classes.headRow}>
 
                                         <TableCell className={this.props.classes.headText} align="left">User</TableCell>
-                                        <TableCell className={this.props.classes.headText} align="right">All-Time Profit</TableCell>
+                                        <TableCell className={this.props.classes.headText} align="right">All-Time Earnings</TableCell>
                                     </TableRow>
                                 </TableHead>
                                 <TableBody>

@@ -13,7 +13,6 @@ function dropTables() {
         DROP TABLE IF EXISTS 'fixed_event_cards';
         DROP TABLE IF EXISTS 'weekly_excluded_companies';
         DROP TABLE IF EXISTS 'user_profit_weeks';
-        DROP TABLE IF EXISTS 'user_strike_weeks';
         DROP TABLE IF EXISTS 'user_total_company_hours';
         COMMIT;
     `)
@@ -75,6 +74,7 @@ function createTables() {
                     weeks_week integer,
                     workers_striked integer,
                     total_workers integer,
+                    did_win boolean DEFAULT FALSE,
                     PRIMARY KEY (companies_id, campaigns_id, weeks_week),
                     FOREIGN KEY (campaigns_id) REFERENCES campaigns(id),
                     FOREIGN KEY (companies_id) REFERENCES companies(id),

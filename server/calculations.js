@@ -260,7 +260,50 @@ class Calculations {
                                     ?,
                                     ?,
                                     sum(selec.strike) AS workers_striked,
-                                    count(*)
+                                    count(*),
+                                    0
+                                FROM 
+                                    (
+                                    SELECT 
+                                        companies_id, strike 
+                                    FROM 
+                                        user_game_selections 
+                                    WHERE 
+                                        accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0)
+                                        AND
+                                        companies_id IN (SELECT id FROM companies WHERE id NOT IN (SELECT companies_id FROM weekly_excluded_companies WHERE weeks_week=?) AND companies.starting_wage IS NOT NULL )
+                                        AND
+                                        weeks_week=?
+                                    ) AS selec
+                                GROUP BY
+                                    selec.companies_id
+                            ) AS allStrikes
+                            WHERE 
+                                allStrikes.workers_striked>0;       
+                    `, [campaigns_id, week, campaigns_id, week, week])
+            })
+            .then(() => {
+                return this.db.run(`
+                    DELETE FROM 
+                        user_strike_weeks 
+                    WHERE
+                        weeks_week=?
+                        AND
+                        campaigns_id=?
+                        AND 
+                        companies_id NOT IN 
+                        (
+                            SELECT 
+                                companies_id 
+                            FROM
+                            (
+                                SELECT
+                                    companies_id,
+                                    ?,
+                                    ?,
+                                    sum(selec.strike) AS workers_striked,
+                                    count(*),
+                                    0
                                 FROM 
                                     (
                                     SELECT 
@@ -278,8 +321,26 @@ class Calculations {
                                     selec.companies_id
                             ) AS allStrikes
                             WHERE 
-                                allStrikes.workers_striked>0;       
-                    `, [campaigns_id, week, campaigns_id, week, week])
+                                allStrikes.workers_striked>0
+                        );
+                `)
+            })
+            .then(() => {
+                return this.db.all(`SELECT * FROM user_strike_weeks WHERE weeks_week=? AND campaigns_id=?;`, [week, campaigns_id])
+            })
+            .then((results) => {
+                const statements = []
+                // Calculating (number of strikers / (total number of workers + 2)) to determine strike winner
+                results.forEach(result => {
+                    
+                    const total = result.total_workers
+                    const striked = result.workers_striked
+                    const rand = Math.floor(Math.random() * (total + 2))
+                    if(rand < striked) {
+                        statements.push(this.db.run("UPDATE user_strike_weeks SET did_win=1 WHERE companies_id=? AND campaigns_id=? AND weeks_week=?;", [result.companies_id, result.campaigns_id, result.weeks_week]))
+                    }
+                });
+                return Promise.all(statements)
             })
             .then(() => {
                 return this.db.run("COMMIT;")
@@ -391,6 +452,7 @@ class Calculations {
                                 c = {}
                                 c.candidates = []
                                 c.isSupervisorChosen = false
+                                c.mostHoursCandidateIndex = 0
                                 supervisorCandidates[row.companies_id] = c
                                 
                                 
@@ -440,7 +502,30 @@ class Calculations {
                                     }
                                     return;
                                 }
-                                c.candidates.push(row) // is candidate for supervisor
+
+                                // Determining if is candidate for supervisor
+                                const currentCandidate = c.candidates[0]
+                                if(currentCandidate === undefined) { // no candidates exist yet
+                                    c.candidates.push(row)
+                                }                                
+                                else {
+                                    const currentTotalHours = currentCandidate.total_hours
+                                    if(row.total_hours > currentTotalHours) { // This is the new maximum
+                                        c.candidates = [row]
+                                    }
+                                    else if(row.total_hours === currentTotalHours) { // Another candidate with the same max hours
+                                        c.candidates.push(row)
+                                    }
+                                    else {
+                                        if (userIsSupervisor) {
+                                            statementsToRun.push(this.db.run('DELETE FROM user_career_history WHERE accounts_username=? AND companies_id=? AND weeks_week=?', [row.accounts_username, row.companies_id, row.career_week]))
+                                        }
+                                        delete noCareerHistory[noCareerKey]
+                                        statementsToRun.push(this.db.run("REPLACE INTO user_career_history VALUES (?, ?, ?, ?, ?)", [row.accounts_username, row.companies_id, nextWeek, false, false]))
+                                    }
+                                }
+
+                                
                             }
                             else if(!isAlreadyRegular) { //is eligible for Regular
                                 if (userIsSupervisor) {
@@ -504,7 +589,7 @@ class Calculations {
                     return this.getRandomEventCard(week).then((newCard) => { return newCard })
                 }),
             // // 2c) Company Strike
-            this.db.all("SELECT companies_id, workers_striked, total_workers, name FROM user_strike_weeks JOIN companies ON companies_id=id WHERE campaigns_id=? and weeks_week=? ORDER BY companies_id;", [campaigns_id, week]),
+            this.db.all("SELECT companies_id, workers_striked, total_workers, name, did_win FROM user_strike_weeks JOIN companies ON companies_id=id WHERE campaigns_id=? and weeks_week=? ORDER BY companies_id;", [campaigns_id, week]),
             // // 2d) Career Boost
             this.getCareers(campaigns_id, week)
 
@@ -674,7 +759,7 @@ class Calculations {
                     return this.getRandomEventCard(week).then((newCard) => { return newCard })
                 }),
             // // 2c) Company Strike
-            this.db.all("SELECT companies_id, workers_striked, total_workers, name FROM user_strike_weeks JOIN companies ON companies_id=id WHERE campaigns_id=? and weeks_week=? ORDER BY companies_id;", [campaigns_id, week]),
+            this.db.all("SELECT companies_id, workers_striked, total_workers, name, did_win FROM user_strike_weeks JOIN companies ON companies_id=id WHERE campaigns_id=? and weeks_week=? ORDER BY companies_id;", [campaigns_id, week]),
             // // 2d) Career Boost
             this.db.all("SELECT accounts_username, name AS company_name, companies_id, max(weeks_week), is_supervisor FROM user_career_history JOIN companies ON companies_id=id WHERE accounts_username IN (SELECT username FROM accounts WHERE campaigns_id=? AND admin=0) AND weeks_week=? GROUP BY accounts_username, companies_id ORDER BY accounts_username, company_name;", [campaigns_id, week+1])
 
@@ -770,7 +855,7 @@ class Calculations {
         const strikeDataSearch = {}
         strikeData.forEach(company => { // only has companies that attempted a strike
             const id = company.companies_id
-            strikeDataSearch[id] = (company.workers_striked / company.total_workers) > 0.5
+            strikeDataSearch[id] = company.did_win
         });
         const careerData = multipliers[3]
         const careerDataSearch = {}
@@ -938,10 +1023,10 @@ class Calculations {
 // const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
 // db.startDB().then(() => {
 //     const c = new Calculations(db);
-//     const calcWeek = 6
-//     c.calculateTotalProfitsVerified(1, calcWeek)
+//     const calcWeek = 7
+//     c.calculateTotalProfits(1, calcWeek)
 //     .then(() => {
-//         c.calculateTotalProfitsVerified(2, calcWeek)
+//         c.calculateTotalProfits(2, calcWeek)
 //     })
 // })
 

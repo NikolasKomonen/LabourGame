@@ -119,14 +119,14 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      },
                      {
                         "accounts_username":"hagrid",
-                        "total_profit":276.3776958195497,
-                        "week_profit":276.3776958195497,
+                        "total_profit":185.8327344362342,
+                        "week_profit":185.8327344362342,
                         "weeks_week":1
                      },
                      {
                         "accounts_username":"harry",
-                        "total_profit":274.75663452462084,
-                        "week_profit":274.75663452462084,
+                        "total_profit":129.88469631131608,
+                        "week_profit":129.88469631131608,
                         "weeks_week":1
                      },
                      {
@@ -137,8 +137,8 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      },
                      {
                         "accounts_username":"ron",
-                        "total_profit":250.6879890507851,
-                        "week_profit":250.6879890507851,
+                        "total_profit":214.4700044974589,
+                        "week_profit":214.4700044974589,
                         "weeks_week":1
                      },
                      {
@@ -371,13 +371,13 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      },
                      {
                         "accounts_username":"hagrid",
-                        "total_profit":554.0382092435552,
+                        "total_profit":463.4932478602398,
                         "week_profit":277.6605134240056,
                         "weeks_week":2
                      },
                      {
                         "accounts_username":"harry",
-                        "total_profit":525.5182463489475,
+                        "total_profit":380.6463081356428,
                         "week_profit":250.7616118243267,
                         "weeks_week":2
                      },
@@ -389,7 +389,7 @@ describe("Testing whole calculation for week 1 and 2", () => {
                      },
                      {
                         "accounts_username":"ron",
-                        "total_profit":376.06879496294846,
+                        "total_profit":339.8508104096222,
                         "week_profit":125.38080591216335,
                         "weeks_week":2
                      },

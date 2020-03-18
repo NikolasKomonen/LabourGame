@@ -115,7 +115,8 @@ class ResultsSection extends Component {
             const companyName = event.name
             const workersStriked = event.workers_striked
             const total_workers = event.total_workers
-            strikeEvents.push(<Typography>There was a strike at {companyName} with {workersStriked} out of {total_workers} going on strike.</Typography>)
+            const did_win = event.did_win === 1 ? true : false
+        strikeEvents.push(<Typography>The strike at {companyName} {did_win ? "won" : "lost"} with {workersStriked} out of {total_workers} going on strike.</Typography>)
         })
 
         if(strikeEvents.length < 1) {

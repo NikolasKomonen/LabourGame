@@ -1023,7 +1023,7 @@ class Calculations {
 // const db = new SQL(path.join(__dirname, "database/dbFile.sqlite"))
 // db.startDB().then(() => {
 //     const c = new Calculations(db);
-//     const calcWeek = 7
+//     const calcWeek = 8
 //     c.calculateTotalProfits(1, calcWeek)
 //     .then(() => {
 //         c.calculateTotalProfits(2, calcWeek)

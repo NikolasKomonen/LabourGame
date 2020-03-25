@@ -11,7 +11,7 @@ const encryption = require('./encryption')
 const GameVariables = require('./GameVariables')
 
 // @@@@@@@@@@@@@@@@@@@@ Set The Game Week Here
-const gv = new GameVariables(8)
+const gv = new GameVariables(9)
 const Calculations = require('./calculations')
 const resultCalculations = new Calculations(db)
 

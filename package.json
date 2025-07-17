@@ -16,7 +16,7 @@
     "crypto": "^1.0.1",
     "express": "^4.17.1",
     "express-generator": "^4.16.1",
-    "express-session": "^1.17.0",
+    "express-session": "^1.18.2",
     "jquery": "^3.4.1",
     "json2csv": "^4.5.4",
     "material-table": "^1.55.0",
